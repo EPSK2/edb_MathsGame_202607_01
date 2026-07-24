@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Hello, World!</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      body{
+        background-color:black;
+      }
+    </style>
+  </head>
+  <body>
+<div class="flex flex-col items-center justify-center w-full max-w-4xl mx-auto p-4">
+  
+  <!-- Number Line Container -->
+  <div class="w-full relative bg-[#f1f1f1] p-8 rounded-lg shadow-inner">
+    <svg id="numberLineSVG" viewBox="0 0 1000 200" class="w-full h-auto">
+      <defs>
+        <!-- Left Arrowhead -->
+        <marker id="arrowHeadLeft" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto-start-reverse">
+          <polygon points="3 2, 10 5, 3 8" fill="white" />
+        </marker>
+        <!-- Right Arrowhead -->
+        <marker id="arrowHeadRight" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+          <polygon points="3 2, 10 5, 3 8" fill="white" />
+        </marker>
+      </defs>
+
+      <!-- Main Horizontal Line -->
+      <line id="mainAxis" x1="40" y1="80" x2="960" y2="80" stroke="white" stroke-width="6" marker-start="url(#arrowHeadLeft)" marker-end="url(#arrowHeadRight)" />
+
+      <!-- Dynamic Tick Marks and Labels will be injected here -->
+      <g id="ticksGroup"></g>
+      <g id="labelsGroup"></g>
+    </svg>
+  </div>
+
+  <!-- Toggle Button -->
+  <button onclick="toggleScale()" class="mt-8 px-6 py-2 bg-white text-white font-bold text-lg rounded shadow hover:bg-gray-800 transition">
+    Toggle 10 / 20 Scale
+  </button>
+
+</div>
+
+<script>
+  // Initial state variable
+  let currentScale = 10;
+
+  function renderNumberLine(scale) {
+    const ticksGroup = document.getElementById('ticksGroup');
+    const labelsGroup = document.getElementById('labelsGroup');
+    
+    // Clear previous elements to avoid overlapping on toggle
+    ticksGroup.innerHTML = '';
+    labelsGroup.innerHTML = '';
+
+    // Canvas layout parameters
+    const startX = 100;
+    const endX = 900;
+    const yCenter = 80;
+    const tickHalfHeight = 30; // Symmetrical height above/below the line
+    const totalWidth = endX - startX;
+
+    for (let i = 0; i <= scale; i+=scale) {
+      // Guaranteed perfectly even spacing using linear interpolation
+      const xPos = startX + (i / scale) * totalWidth;
+
+      // 1. Generate Tick Marks
+      const tick = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      tick.setAttribute("x1", xPos);
+      tick.setAttribute("y1", yCenter - tickHalfHeight);
+      tick.setAttribute("x2", xPos);
+      tick.setAttribute("y2", yCenter + tickHalfHeight);
+      tick.setAttribute("stroke", "white");
+      tick.setAttribute("stroke-width", "6");
+      ticksGroup.appendChild(tick);
+
+      // 2. Generate Centered Numbers
+      const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      label.setAttribute("x", xPos);
+      label.setAttribute("y", yCenter + tickHalfHeight + 45); // Drop below the tick
+      label.setAttribute("text-anchor", "middle");            // Centers number perfectly under mark
+      label.setAttribute("fill", "white");
+      label.setAttribute("font-family", "Impact, Arial, sans-serif"); // Matches image_7ccd25.png
+      
+      // Scale down font slightly when displaying 20 so numbers don't overlap
+      label.setAttribute("font-size", scale === 10 ? "48" : "28"); 
+      label.textContent = i;
+      labelsGroup.appendChild(label);
+    }
+  }
+
+  // Function to toggle between 10 and 20
+  function toggleScale() {
+    currentScale = currentScale === 10 ? 20 : 10;
+    renderNumberLine(currentScale);
+  }
+
+  // Draw the initial 0-10 number line immediately
+  renderNumberLine(currentScale);
+</script>
+  </body>
+</html>

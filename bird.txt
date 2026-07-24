@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flock of Birds - Animatable Components</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #f4f4f6; /* Minimalist off-white/light grey */
+            font-family: sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="sky"></canvas>
+
+    <script>
+        const canvas = document.getElementById('sky');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        const birds = [];
+        const NUM_BIRDS = 25;
+
+        // Path2D objects using the exact paths from kaml.txt
+        const pathBackWing = new Path2D("M 110 182 C 145 140, 190 70, 240 40 C 255 30, 265 38, 260 55 C 245 100, 230 145, 215 185 C 180 180, 145 180, 110 182 Z");
+        const pathBody = new Path2D("M 10 225 L 32 218 C 52 195, 72 185, 96 182 C 140 185, 180 190, 224 195 C 276 205, 328 210, 380 206 C 384 205, 388 209, 386 215 C 370 220, 355 225, 345 235 C 360 250, 375 265, 384 282 C 386 288, 382 292, 376 290 C 320 275, 260 280, 200 285 C 140 285, 90 270, 50 250 C 40 240, 35 235, 32 232 Z");
+        const pathFrontWing = new Path2D("M 96 182 C 142 165, 202 95, 264 55 C 280 40, 290 48, 288 64 C 272 125, 248 165, 224 195 C 180 190, 140 185, 96 182 Z");
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        class Bird {
+            constructor(x, y) {
+                // Parallax depth (0 to 1) - closer birds are larger and faster
+                this.depth = Math.random(); 
+                this.scale = 0.05 + this.depth * 0.4; 
+                
+                // Position (starting on the right side of the screen)
+                this.x = x !== undefined ? x : Math.random() * width;
+                this.y = y !== undefined ? y : height * 0.1 + Math.random() * (height * 0.8);
+                
+                // Velocity: strictly moving right to left
+                this.vx = -(2 + Math.random() * 3) * this.scale;
+                this.vy = 0; // Straight line horizontally
+                
+                // Flight gentle wobble properties
+                this.wobbleSpeed = 0.5 + Math.random();
+                this.wobblePhase = Math.random() * Math.PI * 2;
+                
+                // Flapping parameters
+                this.flapSpeed = 10 + Math.random() * 5; 
+                this.flapPhase = Math.random() * Math.PI * 2;
+            }
+
+            update() {
+                // Move strictly left
+                this.x += this.vx;
+
+                // Screen wrapping (when bird goes off left edge, wrap to right)
+                if (this.x < -200) {
+                    this.x = width + 200;
+                    this.y = height * 0.1 + Math.random() * (height * 0.8);
+                }
+            }
+
+            draw(ctx, time) {
+                // Flapping animation logic
+                // Using cosine for a smooth 1 to -1 transition, effectively mirroring the wing for a downstroke
+                const flapCycle = Math.cos(time * this.flapSpeed + this.flapPhase);
+                
+                // Slight rotational offset based on the flap cycle to make the wing motion more dynamic
+                const flapRotation = -flapCycle * 0.2; 
+
+                // Vertical gentle drift applied visually (keeps underlying path straight)
+                const visualYOffset = Math.sin(time * this.wobbleSpeed + this.wobblePhase) * 20 * this.scale;
+                
+                // Simulate body rising and falling slightly during wing strokes
+                const bodyPitch = flapCycle * 0.05;
+
+                ctx.save();
+                ctx.translate(this.x, this.y + visualYOffset);
+                
+                // Scale the entire bird
+                ctx.scale(this.scale, this.scale);
+                ctx.rotate(bodyPitch);
+
+                // Offset to visually center the 400x350 SVG shape around its origin
+                ctx.translate(-200, -175);
+
+                // --- 1. BACK WING ---
+                ctx.save();
+                // Translate to back-wing joint transform origin
+                ctx.translate(110, 250);
+                ctx.rotate(flapRotation);
+                // Scale Y-axis to squash/mirror the wing (simulating 3D flapping)
+                ctx.scale(1, flapCycle);
+                // Translate back
+                ctx.translate(-110, -182);
+                
+                ctx.fillStyle = '#444444'; // Slightly lighter to create depth separation
+                ctx.fill(pathBackWing);
+                ctx.restore();
+
+                // --- 2. BIRD BODY ---
+                ctx.fillStyle = '#111111'; // Main silhouette color
+                ctx.fill(pathBody);
+
+                // --- 3. FRONT WING ---
+                ctx.save();
+                // Translate to front-wing joint transform origin
+                ctx.translate(96, 250);
+                ctx.rotate(flapRotation);
+                // Scale Y-axis (downstroke mirror)
+                ctx.scale(1, flapCycle);
+                // Translate back
+                ctx.translate(-96, -182);
+                
+                ctx.fillStyle = '#111111';
+                ctx.fill(pathFrontWing);
+                ctx.restore();
+
+                ctx.restore();
+            }
+        }
+
+        // Initialize flock scattered across the screen
+        for (let i = 0; i < NUM_BIRDS; i++) {
+            birds.push(new Bird());
+        }
+
+        // Animation loop
+        function animate(timestamp) {
+            const time = timestamp * 0.001; 
+
+            ctx.clearRect(0, 0, width, height);
+
+            // Sort by depth so smaller birds render behind larger ones
+            birds.sort((a, b) => a.scale - b.scale);
+
+            for (let i = 0; i < birds.length; i++) {
+                birds[i].update();
+                birds[i].draw(ctx, time);
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        requestAnimationFrame(animate);
+    </script>
+</body>
+</html>

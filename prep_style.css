@@ -1,0 +1,144 @@
+@font-face {
+  font-family: 'allSeto';
+  src: url('./allseto_subset.woff2') format('woff2');
+  font-display: swap;
+  font-weight: normal;
+  font-style: normal;
+}
+
+html,
+body{
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  font-family: 'allSeto';
+}
+
+button{
+  font-family: 'allSeto' !important;
+}
+
+/* Full-screen preparation / loading overlay */
+.prep-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  /* Match the main game background to avoid a bright blue flash */
+  background-color: #73bbff;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  pointer-events: auto; /* block interaction with underlying UI */
+  opacity: 1;
+  transition: opacity 0.6s ease-out;
+}
+
+/* Hidden state used for fade-out removal */
+.prep-overlay.prep-overlay-hidden {
+  opacity: 0;
+}
+
+.prep-overlay-main {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.prep-overlay-message {
+  font-size: clamp(3.6rem, 6.4vw, 5.2rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: center;
+  margin-bottom: 2vh;
+}
+
+/* Horizontal fruit strip that runs along the bottom portion of the overlay */
+.prep-fruit-strip {
+  height: 20vh;
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  --prep-marquee-duration: 8s;
+}
+
+.prep-fruit-strip.is-marquee {
+  justify-content: flex-start;
+}
+
+.prep-fruit-marquee-track {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  flex-wrap: nowrap;
+  will-change: transform;
+}
+
+.prep-fruit-marquee-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 4vw;
+}
+
+.prep-fruit {
+  font-size: clamp(6rem, 12vh, 10rem);
+  line-height: 1;
+}
+
+.prep-fruit.is-selected {
+  font-size: clamp(9rem, 18vh, 15rem);
+  filter: drop-shadow(0 0 0.5rem rgba(255, 255, 255, 0.85));
+}
+
+.prep-pulse-loader {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  animation: prep-pulse-loader 1.1s ease-in-out infinite;
+}
+
+.prep-pulse-fruit {
+  font-size: clamp(6rem, 12vh, 10rem);
+  line-height: 1;
+}
+
+.prep-pulse-dots {
+  font-size: clamp(2.8rem, 6vh, 4.2rem);
+  letter-spacing: 0.12em;
+  transform: translateY(-0.4rem);
+  animation: prep-dot-blink 1s steps(1, end) infinite;
+}
+
+@keyframes prep-pulse-loader {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+@keyframes prep-dot-blink {
+  0% {
+    opacity: 0.2;
+  }
+  33% {
+    opacity: 0.5;
+  }
+  66% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+

@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Layered Zdog Gift Box</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background-color: #f4f6f8;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    .container {
+      text-align: center;
+    }
+
+    canvas {
+      display: block;
+      cursor: grab;
+    }
+
+    canvas:active {
+      cursor: grabbing;
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      color: #4a5568;
+      margin-top: 1rem;
+      font-weight: 500;
+    }
+  </style>
+  <script src="https://unpkg.com/zdog@1/dist/zdog.dist.min.js"></script>
+</head>
+<body>
+
+  <div class="container">
+    <canvas class="zdog-canvas" width="450" height="450"></canvas>
+    <h1>Drag to spin the gift box!</h1>
+  </div>
+
+  <script>
+    // --- Palette Definitions ---
+    // Sky Blue Base / Lid
+    const skyBlue = {
+      front: '#87CEEB', left: '#70B5D9', right: '#70B5D9',
+      top: '#A3E0FF', bottom: '#60A3C4', rear: '#60A3C4',
+    };
+    const skyBlueLid = {
+      front: '#95D6F5', left: '#7EC2E0', right: '#7EC2E0',
+      top: '#B5E8FF', bottom: '#6AAAC9', rear: '#6AAAC9',
+    };
+    // Slate Blue Ribbons / Bow
+    const slateBlue = {
+      front: '#6A5ACD', left: '#574AA3', right: '#574AA3',
+      top: '#8071E6', bottom: '#483D8A', rear: '#483D8A',
+    };
+
+    // --- Zdog Scene Setup ---
+    let isSpinning = true;
+    let illo = new Zdog.Illustration({
+      element: '.zdog-canvas',
+      zoom: 2.2,
+      dragRotate: true,
+      onDragStart: function() {
+        isSpinning = false;
+      },
+      onDragEnd: function() {
+        isSpinning = true;
+      }
+    });
+
+    illo.rotate.x = -0.35;
+    illo.rotate.y = -0.6;
+
+    // Use Anchor instead of Group to enable global Z-sorting
+    let boxGroup = new Zdog.Anchor({
+      addTo: illo,
+    });
+
+    // --- 1. Box Base (80x70x80, centered around y: 15) ---
+    let baseGroup = new Zdog.Anchor({
+      addTo: boxGroup,
+      translate: { y: 15 },
+    });
+
+    // Base Front Face
+    let baseFront = new Zdog.Rect({
+      addTo: baseGroup,
+      width: 80, height: 70,
+      translate: { z: 40 },
+      color: skyBlue.front,
+      fill: true, stroke: 1,
+      backface: false, // Hides the shape when facing away
+    });
+    new Zdog.Rect({
+      addTo: baseFront,
+      width: 16, height: 70,
+      translate: { z: 0.1 },
+      color: slateBlue.front,
+      fill: true, stroke: 1,
+      backface: false,
+    });
+
+    // Base Rear Face
+    let baseRear = new Zdog.Rect({
+      addTo: baseGroup,
+      width: 80, height: 70,
+      translate: { z: -40 },
+      rotate: { y: Math.PI },
+      color: skyBlue.rear,
+      fill: true, stroke: 1,
+      backface: false,
+    });
+    new Zdog.Rect({
+      addTo: baseRear,
+      width: 16, height: 70,
+      translate: { z: 0.1 },
+      color: slateBlue.rear,
+      fill: true, stroke: 1,
+      backface: false,
+    });
+
+    // Base Left Face
+    let baseLeft = new Zdog.Rect({
+      addTo: baseGroup,
+      width: 80, height: 70,
+      translate: { x: -40 },
+      rotate: { y: -Math.PI / 2 },
+      color: skyBlue.left,
+      fill: true, stroke: 1,
+      backface: false,
+    });
+    new Zdog.Rect({
+      addTo: baseLeft,
+      width: 16, height: 70,
+      translate: { z: 0.1 },
+      color: slateBlue.left,
+      fill: true, stroke: 1,
+      backface: false,
+    });
+
+    // Base Right Face
+    let baseRight = new Zdog.Rect({
+      addTo: baseGroup,
+      width: 80, height: 70,
+      translate: { x: 40 },
+      rotate: { y: Math.PI / 2 },
+      color: skyBlue.right,
+      fill: true, stroke: 1,
+      backface: false,
+    });
+    new Zdog.Rect({
+      addTo: baseRight,
+      width: 16, height: 70,
+      translate: { z: 0.1 },
+      color: slateBlue.right,
+      fill: true, stroke: 1,
+      backface: false,
+    });
+
+    // Base Bottom Face
+    let baseBottom = new Zdog.Rect({
+      addTo: baseGroup,
+      width: 80, height: 80,
+      translate: { y: 35 },
+      rotate: { x: -Math.PI / 2 },
+      color: skyBlue.bottom,
+      fill: true, stroke: 1,
+      backface: false,
+    });
+    new Zdog.Rect({
+      addTo: baseBottom,
+      width: 16, height: 80,
+      translate: { z: 0.1 },
+      color: slateBlue.bottom,
+      fill: true, stroke: 1,
+      backface: false,
+    });
+    new Zdog.Rect({
+      addTo: baseBottom,
+      width: 80, height: 16,
+      translate: { z: 0.2 },
+      color: slateBlue.bottom,
+      fill: true, stroke: 1,
+      backface: false,
+    });
+
+    // --- 2. Box Lid (86x18x86, centered around y: -29) ---
+    let lidGroup = new Zdog.Anchor({
+      addTo: boxGroup,
+      translate: { y: -29 },
+    });
+
+    // Lid Front Face
+    let lidFront = new Zdog.Rect({
+      addTo: lidGroup,
+      width: 86, height: 18,
+      translate: { z: 43 },
+      color: skyBlueLid.front,
+      fill: true, stroke: 1,
+      backface: false,
+    });
+    new Zdog.Rect({
+      addTo: lidFront,
+      width: 16, height: 18,
+      translate: { z: 0.1 },
+      color: slateBlue.front,
+      fill: true, stroke: 1,
+      backface: false,
+    });
+
+    // Lid Rear Face
+    let lidRear = new Zdog.Rect({
+      addTo: lidGroup,
+      width: 86, height: 18,
+      translate: { z: -43 },
+      rotate: { y: Math.PI },
+      color: skyBlueLid.rear,
+      fill: true, stroke: 1,
+      backface: false,
+    });
+    new Zdog.Rect({
+      addTo: lidRear,
+      width: 16, height: 18,
+      translate: { z: 0.1 },
+      color: slateBlue.rear,
+      fill: true, stroke: 1,
+      backface: false,
+    });
+
+    // Lid Left Face
+    let lidLeft = new Zdog.Rect({
+      addTo: lidGroup,
+      width: 86, height: 18,
+      translate: { x: -43 },
+      rotate: { y: -Math.PI / 2 },
+      color: skyBlueLid.left,
+      fill: true, stroke: 1,
+      backface: false,
+    });
+    new Zdog.Rect({
+      addTo: lidLeft,
+      width: 16, height: 18,
+      translate: { z: 0.1 },
+      color: slateBlue.left,
+      fill: true, stroke: 1,
+      backface: false,
+    });
+
+    // Lid Right Face
+    let lidRight = new Zdog.Rect({
+      addTo: lidGroup,
+      width: 86, height: 18,
+      translate: { x: 43 },
+      rotate: { y: Math.PI / 2 },
+      color: skyBlueLid.right,
+      fill: true, stroke: 1,
+      backface: false,
+    });
+    new Zdog.Rect({
+      addTo: lidRight,
+      width: 16, height: 18,
+      translate: { z: 0.1 },
+      color: slateBlue.right,
+      fill: true, stroke: 1,
+      backface: false,
+    });
+
+    // Lid Top Face
+    let lidTop = new Zdog.Rect({
+      addTo: lidGroup,
+      width: 86, height: 86,
+      translate: { y: -9 },
+      rotate: { x: Math.PI / 2 },
+      color: skyBlueLid.top,
+      fill: true, stroke: 1,
+      backface: false,
+    });
+    new Zdog.Rect({
+      addTo: lidTop,
+      width: 16, height: 86,
+      translate: { z: 0.1 },
+      color: slateBlue.top,
+      fill: true, stroke: 1,
+      backface: false,
+    });
+    new Zdog.Rect({
+      addTo: lidTop,
+      width: 86, height: 16,
+      translate: { z: 0.2 },
+      color: slateBlue.top,
+      fill: true, stroke: 1,
+      backface: false,
+    });
+
+    // --- 3. The Bow & Tails ---
+    let bowGroup = new Zdog.Anchor({
+      addTo: boxGroup,
+      translate: { y: -38 } // Floats exactly on top of the lid top surface
+    });
+
+    // Center Knot
+    new Zdog.Box({
+      addTo: bowGroup,
+      width: 18, height: 14, depth: 18,
+      cornerRadius: 3,
+      color: '#7667D9',
+      leftFace: slateBlue.left,
+      rightFace: slateBlue.right,
+      topFace: slateBlue.top,
+      bottomFace: slateBlue.bottom,
+      rearFace: slateBlue.rear,
+      stroke: 2,
+    });
+
+    // Left Loop
+    new Zdog.Shape({
+      addTo: bowGroup,
+      path: [
+        { x: 0, y: 0, z: 0 },
+        { bezier: [
+          { x: -15, y: -22, z: 12 },
+          { x: -32, y: -22, z: 6 },
+          { x: -36, y: -5, z: 0 }
+        ]},
+        { bezier: [
+          { x: -32, y: 12, z: -6 },
+          { x: -15, y: 5, z: 0 },
+          { x: 0, y: 0, z: 0 }
+        ]}
+      ],
+      closed: true,
+      color: slateBlue.front,
+      fill: true, stroke: 5,
+      rotate: { y: 0.15, x: -0.1 }
+    });
+
+    // Right Loop
+    new Zdog.Shape({
+      addTo: bowGroup,
+      path: [
+        { x: 0, y: 0, z: 0 },
+        { bezier: [
+          { x: 15, y: -22, z: 12 },
+          { x: 32, y: -22, z: 6 },
+          { x: 36, y: -5, z: 0 }
+        ]},
+        { bezier: [
+          { x: 32, y: 12, z: -6 },
+          { x: 15, y: 5, z: 0 },
+          { x: 0, y: 0, z: 0 }
+        ]}
+      ],
+      closed: true,
+      color: slateBlue.front,
+      fill: true, stroke: 5,
+      rotate: { y: -0.15, x: -0.1 }
+    });
+
+    // Ribbon Tail Left 
+    new Zdog.Shape({
+      addTo: bowGroup,
+      path: [
+        { x: -5, y: 4, z: 10 },
+        { bezier: [
+          { x: -12, y: 16, z: 35 },
+          { x: -18, y: 28, z: 48 },
+          { x: -22, y: 42, z: 50 }
+        ]}
+      ],
+      closed: false,
+      color: slateBlue.left,
+      stroke: 6,
+    });
+
+    // Ribbon Tail Right 
+    new Zdog.Shape({
+      addTo: bowGroup,
+      path: [
+        { x: 5, y: 4, z: 10 },
+        { bezier: [
+          { x: 12, y: 16, z: 35 },
+          { x: 18, y: 28, z: 48 },
+          { x: 22, y: 42, z: 50 }
+        ]}
+      ],
+      closed: false,
+      color: slateBlue.left,
+      stroke: 6,
+    });
+
+    // --- 4. Animation Loop ---
+    function animate() {
+      if (isSpinning) {
+        illo.rotate.y += 0.008;
+      }
+      illo.updateRenderGraph();
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+  </script>
+
+</body>
+</html>

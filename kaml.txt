@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bird Silhouette SVG - Animatable Components</title>
+    <style>
+        /* Centering the SVG and providing a clean canvas */
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 40px 20px;
+            min-height: 100vh;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        .canvas-container {
+            width: 100%;
+            max-width: 400px;
+            aspect-ratio: 400 / 350; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: contain; 
+            /* Allows overflow in case the wings animate outside the box */
+            overflow: visible;
+        }
+
+        /* Ensuring smooth, anti-aliased rendering */
+        path {
+            fill: #000000;
+            stroke: #000000;
+            stroke-width: 0.5px;
+            stroke-linejoin: round;
+            stroke-linecap: round;
+        }
+
+        /* 
+           Animation-ready properties: 
+           Transform origins are mapped to the exact base joints of the wings 
+        */
+        #back-wing {
+            transform-origin: 110px 182px;
+            /* Made slightly lighter/opaque to visually separate it from the front */
+            fill: #222222;
+            stroke: #222222;
+        }
+
+        #front-wing {
+            transform-origin: 96px 182px;
+        }
+
+        #bird-body {
+            transform-origin: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="canvas-container">
+        <!-- SVG viewBox framing the bird -->
+        <svg viewBox="0 0 400 350" xmlns="http://www.w3.org/2000/svg">
+            
+            <!-- Grouping the bird for easy global scaling or rotation -->
+            <g id="animatable-bird">
+                
+                <!-- Component 1: Back Wing (Rendered first so it sits behind the body) -->
+                <path id="back-wing" d="M 110 182 
+                         C 145 140, 190 70, 240 40 
+                         C 255 30, 265 38, 260 55 
+                         C 245 100, 230 145, 215 185 
+                         C 180 180, 145 180, 110 182 Z" />
+
+                <!-- Component 2: Main Body (Includes the triangle beak, belly, and tail fork) -->
+                <path id="bird-body" d="M 10 225 
+                         L 32 218
+                         C 52 195, 72 185, 96 182 
+                         C 140 185, 180 190, 224 195 
+                         C 276 205, 328 210, 380 206 
+                         C 384 205, 388 209, 386 215 
+                         C 370 220, 355 225, 345 235 
+                         C 360 250, 375 265, 384 282 
+                         C 386 288, 382 292, 376 290 
+                         C 320 275, 260 280, 200 285 
+                         C 140 285, 90 270, 50 250 
+                         C 40 240, 35 235, 32 232 Z" />
+
+                <!-- Component 3: Front Wing (Rendered last to overlay the body seamlessly) -->
+                <path id="front-wing" d="M 96 182 
+                         C 142 165, 202 95, 264 55 
+                         C 280 40, 290 48, 288 64 
+                         C 272 125, 248 165, 224 195 
+                         C 180 190, 140 185, 96 182 Z" />
+
+            </g>
+                     
+        </svg>
+    </div>
+
+</body>
+</html>

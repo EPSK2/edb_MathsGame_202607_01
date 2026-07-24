@@ -1,0 +1,1091 @@
+@font-face {
+  font-family: 'allSeto';
+  src: url('./allseto_subset.woff2') format('woff2');
+  font-display: swap;
+  font-weight: normal;
+  font-style: normal;
+}
+
+
+html,
+body{
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'allSeto';
+}
+
+button{
+  font-family: 'allSeto' !important;
+}
+
+:root {
+  --slot-cloud-width: clamp(13vw, 15vw, 17vw);
+  --slot-cloud-height: calc(var(--slot-cloud-width) * 0.62);
+  --slot-cloud-gap: clamp(0.5vw, 1vw, 1.5vw);
+}
+
+body {
+  /* Use the canvas as a full-screen background, center the game shell */
+  background-color: #020617;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Viewport wrapper for intro zoom animation */
+#viewport-container {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  transform-origin: left center;
+  /* Smooth transition back to full view */
+  transition: transform 1.2s ease-out;
+}
+
+/* Initial state: zoomed into approx x-axis 10vw–40vw using transform only */
+#viewport-container.intro-zoom {
+  transform: translateX(-10vw) scale(1.6);
+}
+
+/* Target state after intro: full-screen view */
+#viewport-container.full-view {
+  transform: translateX(0) scale(1);
+}
+
+#yellowBubbleText {
+  position: fixed;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-height: 78px;
+  padding: 10px 12px;
+  /*background: rgba(255, 255, 255, 0.82);*/
+  color: #3f2f1f;
+  font-size: 2em;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: center;
+  word-break: break-word;
+  pointer-events: none;
+  z-index: 12;
+  transform: translate(-50%, -100%);
+}
+
+.speech-bubble {
+  display: none;
+}
+
+/* Bottom mode indicator arrows and number line.
+   The whole strip (including 小 and 大) spans horizontally from 25vw to 75vw,
+   and is centred vertically around 72.5vh (between 0.7–0.75 of viewport height). */
+#bottomModeArrowStrip {
+  position: fixed;
+  left: 25vw;
+  top: 65vh;
+  transform: translateY(-50%);
+  width: 60vw;
+  min-height: 64px;
+  height: auto;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  pointer-events: none;
+  z-index: 480;
+}
+
+#numberLineSVG {
+  --number-line-responsive-width: 50vw;
+  --number-line-max-width: 5000px;
+  flex: 0 1 auto;
+  width: min(var(--number-line-responsive-width), var(--number-line-max-width));
+  max-width: none;
+  height: 12.5vh;
+  overflow: visible;
+}
+
+
+/* Intro helper video pinned at left: 10vw inside the viewport container */
+#introVideo {
+  position: fixed;
+  left: 10vw;
+  bottom: 9vh;
+  width: 24vw;
+  max-width: 480px;
+  height: auto;
+  border-radius: 16px;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6);
+  z-index: 10;
+}
+
+
+
+
+/* Full-screen jungle canvas background */
+#gameCanvas {
+
+  position: fixed;
+  inset: 0;
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+  z-index: -1;
+}
+
+/* Black steel bar for claw machine */
+#clawBar {
+  position: fixed;
+  top: 25vh;
+  left: 17.5vw;
+  width: 65vw;
+  height: 1vh;
+  background: linear-gradient(to bottom, #000000 0%, #222222 40%, #111111 100%);
+  box-shadow:
+    0 0.3vh 0.8vh rgba(0, 0, 0, 0.9),
+    0 -0.1vh 0.4vh rgba(255, 255, 255, 0.18),
+    inset 0 0.1vh 0.2vh rgba(255, 255, 255, 0.2),
+    inset 0 -0.1vh 0.2vh rgba(0, 0, 0, 0.7);
+  z-index: 350;
+}
+
+#clawBar::before {
+  content: "";
+  position: absolute;
+  inset: 0.1vh 4vw;
+  border-radius: 0.4vh;
+  border-top: 0.08vh solid rgba(255, 255, 255, 0.35);
+  border-bottom: 0.08vh solid rgba(0, 0, 0, 0.8);
+  opacity: 0.9;
+}
+
+/* Claw machine image with pivot at the steel bar bottom */
+#clawMachineImage {
+  position: fixed;
+  /* Top of the image sits at the bottom of the steel bar (45vh bar + 1vh height) */
+  top: calc(25vh + 1vh);
+  left: 50%;
+  transform-origin: 50% 0%;
+  display: block;
+  cursor: default;
+  /* Base scale is controlled via JS; keep 1 here so JS scale is authoritative */
+  transform: translateX(-50%);
+  /* Ensure the claw renders above helper images and other UI */
+  z-index: 1200;
+  pointer-events: none;
+}
+
+
+
+
+
+
+
+/* Centered game container over the canvas */
+.game-shell {
+  position: relative;
+  padding: 1.5rem;
+  padding-top: calc(1.5rem + 6vh); /* push content below fixed header */
+}
+
+/* Header bar for game title: full-width at top 5% of screen */
+.game-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 7.5vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffffff;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.35);
+  z-index: 100;
+}
+
+
+.game-header h1 {
+  margin: 0;
+}
+
+
+
+
+
+
+
+/* Legacy cube scene styles (no longer used) */
+.slot-scene {
+  position: relative;
+  width: 50px;
+  height: 50px;
+  perspective: 800px;
+  z-index: 3; /* ensure cubes render above the scene layer */
+}
+
+/* 3D opaque cube container (base 20x20x20, scaled up via transform) */
+.slot-cube {
+  position: relative;
+  width: 20px;
+  height: 20px;
+}
+
+
+/* Inner spinner that actually rotates the cube */
+.slot-cube-spinner {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  animation: cube-spin 10s linear infinite;
+}
+
+
+.slot-cube-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-color: #808080;
+  backface-visibility: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* depth = 10px (half of base cube size) */
+.slot-cube-face-front {
+  transform: translateZ(10px);
+}
+
+.slot-cube-face-back {
+  transform: rotateY(180deg) translateZ(10px);
+}
+
+.slot-cube-face-right {
+  transform: rotateY(90deg) translateZ(10px);
+}
+
+.slot-cube-face-left {
+  transform: rotateY(-90deg) translateZ(10px);
+}
+
+.slot-cube-face-top {
+  transform: rotateX(90deg) translateZ(10px);
+}
+
+.slot-cube-face-bottom {
+  transform: rotateX(-90deg) translateZ(10px);
+}
+
+/* Combined spin animation with different axis speeds encoded in rotation ratios */
+@keyframes cube-spin {
+  0% {
+    transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+  }
+  100% {
+    transform: rotateX(360deg) rotateY(540deg) rotateZ(720deg);
+  }
+}
+
+/* Active cube color animation between blue and milk-white */
+@keyframes cube-active-color {
+  0% {
+    background-color: #1d4ed8;
+  }
+  50% {
+    background-color: #fef9c3;
+  }
+  100% {
+    background-color: #1d4ed8;
+  }
+}
+
+
+/* Fence gate overlay */
+.slot-gate-image {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+
+
+
+
+.slot.highlight {
+  /* Keep highlight class for logic, but remove yellow rectangle visuals */
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  transform: scale(1.05);
+  /*
+  border-color: #fbbf24;
+  background: #fef9c3;
+  transform: scale(1.05);
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.7);
+  */
+}
+
+
+.slot.filled {
+  /* Keep class for logic, but hide visual rectangle when filled */
+  border-style: solid;
+  border-color: transparent;
+  background: transparent;
+}
+
+
+
+
+.slot.error {
+  /* Keep class for logic, but hide red rectangle visuals */
+  animation: none;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+
+/* Bear outfit pop animation */
+
+.bear-outfit {
+  animation: pop 0.6s ease;
+}
+
+.chest-lid {
+  transform-origin: bottom center;
+  transition: transform 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.chest.open .chest-lid {
+  transform: rotateX(-110deg);
+}
+
+/* Confetti */
+.confetti {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* Speech bubble */
+.speech-bubble {
+  position: fixed;
+  top: 37.5%;
+  left: 22.5%;
+  transform-origin: top left;
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+
+
+/* Stamp display on victory */
+.stamp-display {
+  font-size: 6rem;
+  animation: spin 0.6s ease;
+}
+
+/* Difficulty & mode buttons */
+.difficulty-btn {
+  padding: 12px 24px;
+  margin: 8px;
+  font-size: 18px;
+  font-weight: bold;
+  border: none;
+  border-radius: 18px;
+  cursor: pointer;
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+  box-shadow: 0 6px 0 rgba(55, 65, 81, 0.25);
+}
+
+.difficulty-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 0 rgba(55, 65, 81, 0.35);
+}
+
+.difficulty-btn.easy {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+}
+
+.difficulty-btn.hard {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: white;
+}
+
+.mode-btn {
+  padding: 12px 24px;
+  margin: 8px;
+  font-size: 18px;
+  font-weight: bold;
+  border: none;
+  border-radius: 18px;
+  cursor: pointer;
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+  box-shadow: 0 6px 0 rgba(30, 64, 175, 0.7);
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: white;
+}
+
+.mode-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 0 rgba(30, 64, 175, 0.8);
+}
+
+/* Victory modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+    circle at top,
+    rgba(252, 211, 77, 0.4),
+    rgba(15, 23, 42, 0.8)
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal-content {
+  background: linear-gradient(135deg, #fefce8, #ffffff);
+  border-radius: 24px;
+  padding: 80px;
+  max-width: 2000px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.45);
+  text-align: center;
+}
+
+.victory-message {
+  font-weight: 700;
+  color: #16a34a;
+  font-size: clamp(2.2rem, 4vw, 3.5rem);
+  line-height: 1.35;
+  white-space: pre-line;
+}
+
+.victory-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.victory-button {
+  border-radius: 9999px;
+  padding: clamp(0.75rem, 1.2vw, 1.5rem) clamp(2rem, 3vw, 3rem);
+  font-weight: 700;
+  font-size: clamp(1.4rem, 2.4vw, 2rem);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.35);
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+
+.victory-button-primary-next,
+.victory-button-primary-restart {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #ffffff;
+}
+
+.victory-button-secondary-menu {
+  background: linear-gradient(135deg, #7dd3fc, #38bdf8);
+  color: #0f172a;
+}
+
+.victory-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 30px rgba(15, 23, 42, 0.45);
+}
+
+/* Utility */
+.opacity-50 {
+  opacity: 0.5;
+}
+
+/* Top-left slide-out menu arrow */
+.strawberry-box {
+  border-radius: 20px;
+  background-image: url("data:image/svg+xml,%3Csvg width='500' height='500' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3C!-- The Flower Template --%3E%3Cg id='flower'%3E%3Cg class='petals'%3E%3Cellipse rx='5' ry='10' cy='-10'/%3E%3Cellipse rx='5' ry='10' cy='-10' transform='rotate(72)'/%3E%3Cellipse rx='5' ry='10' cy='-10' transform='rotate(144)'/%3E%3Cellipse rx='5' ry='10' cy='-10' transform='rotate(216)'/%3E%3Cellipse rx='5' ry='10' cy='-10' transform='rotate(288)'/%3E%3C/g%3E%3Ccircle r='4' fill='%23FFD700'/%3E%3C/g%3E%3C/defs%3E%3C!-- Instances of Flowers with varied petal colors --%3E%3Cuse href='%23flower' x='50' y='60' fill='%23FFFFFF' transform='rotate(10 50 60)'/%3E%3Cuse href='%23flower' x='200' y='150' fill='%23DBE2E9' transform='rotate(45 200 150)'/%3E%3Cuse href='%23flower' x='350' y='80' fill='%23FFFFFF' transform='rotate(90 350 80)'/%3E%3Cuse href='%23flower' x='120' y='320' fill='%23DBE2E9' transform='rotate(180 120 320)'/%3E%3Cuse href='%23flower' x='420' y='380' fill='%23FFFFFF' transform='rotate(250 420 380)'/%3E%3Cuse href='%23flower' x='250' y='450' fill='%23DBE2E9' transform='rotate(300 250 450)'/%3E%3C/svg%3E"), 
+  
+  /* Layer 2 (Bottom): The base strawberry radial gradient */
+  radial-gradient(circle at center, #e86363 0%, #c33d3d 100%);
+  
+  /* Background settings */
+  background-repeat: repeat, no-repeat;
+  background-size: 500px 500px, 100% 100%;
+}
+
+.menu-arrow {
+  position: fixed;
+  top: 8vh;
+  left: 0.5vw;
+  z-index: 1500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20vw;
+  height: 7.5vw;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.85);
+  color: #000;
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
+  /* Fixed in place; no slide-out animation */
+  transform: none;
+  transition: box-shadow 0.35s ease-out;
+}
+
+
+
+.menu-arrow:hover,
+.menu-arrow:focus-within {
+  box-shadow: 0 18px 30px rgba(0, 0, 0, 0.9);
+}
+
+
+
+.menu-arrow-label {
+  font-size: clamp(1.75rem, 2vw, 6rem);
+}
+
+.right-tab .menu-arrow-label {
+  margin-left: 0; /* override default margin */
+}
+/* Animations */
+@keyframes pop {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes bounceBack {
+  0% {
+    /* Keep the tile anchored at its crate centre */
+    transform: translate(-50%, -100%) scale(1);
+    opacity: 1;
+  }
+  50% {
+    /* Hop up slightly while staying centred over the crate */
+    transform: translate(-50%, -100%) translateY(-30px) scale(0.9);
+  }
+  100% {
+    /* Return exactly to the original centred position */
+    transform: translate(-50%, -100%) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    /* Keep the drop target centred over the cube while shaking */
+    transform: translate(-50%, -50%) translateX(0);
+  }
+  25% {
+    transform: translate(-50%, -50%) translateX(-10px);
+  }
+  75% {
+    transform: translate(-50%, -50%) translateX(10px);
+  }
+}
+
+
+
+
+
+
+
+
+@keyframes spin {
+
+  0% {
+    transform: scale(0) rotate(-45deg);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+
+/* Gift box debug overlay */
+.gift-box {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 1300;
+}
+
+.gift-box img {
+ display: block;
+ width: 80px;
+ height: auto;
+}
+
+@font-face {
+  font-family: "Nightgazer16";
+  src: url("./Nightgazer16.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* Gift position input panel: monitor + keyboard */
+
+.gift-control-panel,
+.gift-control-panel *,
+.gift-control-panel button {
+  font-family: "Nightgazer16", "Courier New", monospace;
+}
+
+
+
+.gift-control-panel {
+  position: fixed;
+  right: 10px;
+  bottom: 10px;
+  width: auto;
+  /* Let the panel height be driven by the monitor + keyboard rather than fixed. */
+  height: auto;
+
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 2px solid rgba(148, 163, 184, 0.9);
+  box-shadow:
+    0 0 0 3px rgba(15, 23, 42, 0.55);
+  z-index: 1400;
+  pointer-events: auto;
+}
+
+
+.gift-panel-left {
+  flex: 0 0 auto;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.8vw;
+  padding-right: 0;
+}
+
+.gift-panel-right {
+  flex: 0 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2vw;
+}
+
+
+.gift-keyboard-number {
+  --gift-row-gap: 0.6vw;
+  display: grid;
+  grid-template-columns: 7vw repeat(6, 5vw);
+  grid-template-rows: repeat(2, 4vw);
+  gap: var(--gift-row-gap);
+  align-items: stretch;
+  justify-items: stretch;
+}
+
+.gift-keyboard-divider {
+  width: 0.35vw;
+  height: 90%;
+  background: #ffffff;
+  border-radius: 999px;
+  box-shadow: 0 0.2vw 0.6vw rgba(0, 0, 0, 0.7);
+}
+
+.gift-keyboard-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1vw;
+}
+
+
+
+
+.gift-monitor {
+ position: relative;
+ width: 7vw;
+ min-height: calc((3vw * 2) + var(--gift-row-gap));
+ border-radius: 1.4vw;
+ background: rgba(107, 107, 107, 0.8);
+ overflow: hidden;
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ justify-content: center;
+ padding: 0;
+ transition: all 0.5s ease-in-out;
+}
+
+.gift-monitor-tall {
+ grid-column: 1;
+ grid-row: 1 / span 2;
+}
+
+.gift-monitor-message {
+ position: relative;
+ top: auto;
+ left: auto;
+ transform: none;
+ max-width: 100%;
+ text-align: center;
+ font-size: 1.8vw;
+ font-weight: 700;
+ line-height: 1.5;
+ letter-spacing: 0.06em;
+ white-space: pre;
+}
+
+.gift-monitor.has-input .gift-monitor-message {
+  top: auto;
+  left: auto;
+  transform: none;
+  text-align: center;
+  font-size: 1.8vw;
+}
+
+
+
+.gift-monitor-input {
+ position: relative;
+ top: auto;
+ left: auto;
+ transform: none;
+ margin-top: 0.4vw;
+ font-size: 1.8vw;
+ color: #a5f3fc;
+ text-shadow:
+   0 0 0.4vw rgba(34, 211, 238, 0.9),
+   0 0 1.2vw rgba(34, 211, 238, 0.9);
+ letter-spacing: 0.15em;
+ display: none;
+}
+
+
+.gift-monitor-message-cyan {
+ color: #67e8f9;
+ text-shadow:
+   0 -0.3vw 0.6vw rgba(34, 211, 238, 0.6),
+   0 0.3vw 0.6vw rgba(34, 211, 238, 0.8),
+   0 0 1.1vw rgba(34, 211, 238, 0.9);
+}
+
+
+.gift-monitor-message-error {
+  color: #fb7185;
+  text-shadow:
+  0 -0.3vw 0.6vw rgba(248, 113, 113, 0.5),
+  0 0.3vw 0.6vw rgba(248, 113, 113, 0.8),
+  0 0 1.2vw rgba(248, 113, 113, 1);
+}
+
+/*.gift-monitor-message-error {
+  color: #3333ff;
+  text-shadow:
+    0 -0.3vw 0.6vw rgba(59, 130, 246, 0.45),
+    0 0.3vw 0.6vw rgba(37, 99, 235, 0.75),
+    0 0 1.2vw rgba(29, 78, 216, 1);
+}*/
+
+.gift-monitor-message-lime {
+ color: #bef264;
+ text-shadow:
+   0 -0.3vw 0.6vw rgba(190, 242, 100, 0.5),
+   0 0.3vw 0.6vw rgba(190, 242, 100, 0.8),
+   0 0 1.2vw rgba(190, 242, 100, 1);
+}
+
+.gift-keyboard-row {
+ display: flex;
+ width: 100%;
+ max-width: 100%;
+ min-width: 0;
+ align-items: center;
+ justify-content: flex-start;
+ gap: 0.6vw;
+}
+
+.gift-keyboard-row:first-of-type {
+  grid-column: 2 / span 6;
+  grid-row: 1;
+}
+
+.gift-keyboard-row:last-of-type {
+  grid-column: 2 / span 6;
+  grid-row: 2;
+}
+
+.gift-key-btn {
+  position: relative;
+  min-width: 5vw;
+  min-height: 2.5vw;
+  padding: 0vw 0.2vw;
+  border-radius: 0;
+  border: 0.18vw solid #0f172a;
+  cursor: pointer;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 2.4vw;
+  font-weight: 700;
+  color: #0f172a;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      #e5e7eb,
+      #e5e7eb 0.4vw,
+      #d1d5db 0.4vw,
+      #d1d5db 0.8vw
+    );
+
+  box-shadow:
+    0 0 0 0.18vw #0f172a,
+    0.18vw 0.18vw 0 0 #1e293b;
+  transition: transform 0.12s ease-out, box-shadow 0.12s ease-out, filter 0.12s ease-out;
+}
+
+
+.gift-key-btn:hover:not(:disabled) {
+  transform: translateY(-0.1vw);
+  box-shadow:
+    0 0 0 0.18vw #0f172a,
+    0.18vw 0.29vw 0 0 #1e293b;
+  filter: brightness(1.05);
+}
+
+.gift-key-btn:active:not(:disabled) {
+  transform: translateY(0.1vw);
+  box-shadow:
+    0 0 0 0.18vw #0f172a,
+    0.12vw 0.18vw 0 0 #0f172a;
+  color: #0f172a;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      #d1d5db,
+      #d1d5db 0.4vw,
+      #9ca3af 0.4vw,
+      #9ca3af 0.8vw
+    );
+}
+
+
+/* Utility to hide labels completely until the glow sequence reveals them. */
+.gift-key-digit-hidden {
+  visibility: hidden;
+  color: transparent !important;
+  text-shadow: none !important;
+}
+
+@keyframes gift-neon-cyan {
+ 0% {
+   opacity: 0;
+   text-shadow: 0 -0.4vw 0.6vw rgba(34, 211, 238, 0.4);
+ }
+ 20% {
+   opacity: 0.6;
+   text-shadow: 0 0.4vw 0.9vw rgba(34, 211, 238, 0.8);
+ }
+ 40% {
+   opacity: 0.8;
+   text-shadow: -0.5vw 0 1vw rgba(34, 211, 238, 1);
+ }
+ 60% {
+   opacity: 1;
+   text-shadow: 0.5vw 0 1vw rgba(34, 211, 238, 1);
+ }
+ 80% {
+   opacity: 0.95;
+   text-shadow: 0 0 1.4vw rgba(34, 211, 238, 1);
+ }
+ 100% {
+   opacity: 1;
+   text-shadow: 0 0 1.2vw rgba(34, 211, 238, 1);
+ }
+}
+
+@keyframes gift-neon-pink {
+ 0% {
+   opacity: 0;
+   text-shadow: 0 -0.4vw 0.6vw rgba(248, 113, 113, 0.4);
+ }
+ 20% {
+   opacity: 0.6;
+   text-shadow: 0 0.4vw 0.9vw rgba(248, 113, 113, 0.8);
+ }
+ 40% {
+   opacity: 0.8;
+   text-shadow: -0.5vw 0 1vw rgba(248, 113, 113, 1);
+ }
+ 60% {
+   opacity: 1;
+   text-shadow: 0.5vw 0 1vw rgba(248, 113, 113, 1);
+ }
+ 80% {
+   opacity: 0.95;
+   text-shadow: 0 0 1.4vw rgba(248, 113, 113, 1);
+ }
+ 100% {
+   opacity: 1;
+   text-shadow: 0 0 1.2vw rgba(248, 113, 113, 1);
+ }
+}
+
+@keyframes gift-neon-lime {
+  0% {
+    opacity: 0;
+    text-shadow: 0 -0.4vw 0.6vw rgba(190, 242, 100, 0.4);
+  }
+  20% {
+    opacity: 0.6;
+    text-shadow: 0 0.4vw 0.9vw rgba(190, 242, 100, 0.8);
+  }
+  40% {
+    opacity: 0.8;
+    text-shadow: -0.5vw 0 1vw rgba(190, 242, 100, 1);
+  }
+  60% {
+    opacity: 1;
+    text-shadow: 0.5vw 0 1vw rgba(190, 242, 100, 1);
+  }
+  80% {
+    opacity: 0.95;
+    text-shadow: 0 0 1.4vw rgba(190, 242, 100, 1);
+  }
+  100% {
+    opacity: 1;
+    text-shadow: 0 0 1.2vw rgba(190, 242, 100, 1);
+  }
+}
+
+/* Button flicker animation when in prompt phase */
+@keyframes gift-key-flicker {
+  /* Rapid blink twice, then stay on with a white glow on the third light-up. */
+  0% {
+    visibility: visible;
+    color: #e5e7eb;
+    text-shadow: none;
+  }
+  18% {
+    visibility: visible;
+    color: #f9fafb;
+    text-shadow:
+      0 0 0.6vw rgba(249, 250, 251, 0.9),
+      0 0 1.1vw rgba(255, 255, 255, 0.9);
+  }
+  32% {
+    visibility: hidden;
+    color: #e5e7eb;
+    text-shadow: none;
+  }
+  50% {
+    visibility: visible;
+    color: #f9fafb;
+    text-shadow:
+      0 0 0.6vw rgba(249, 250, 251, 0.9),
+      0 0 1.1vw rgba(255, 255, 255, 0.9);
+  }
+  64% {
+    visibility: hidden;
+    color: #e5e7eb;
+    text-shadow: none;
+  }
+  100% {
+    visibility: visible;
+    color: #e5e7eb;
+    text-shadow:
+      0 0 0.45vw rgba(249, 250, 251, 0.95),
+      0 0 0.95vw rgba(255, 255, 255, 0.95),
+      0 0 1.45vw rgba(255, 255, 255, 0.85);
+  }
+}
+
+.gift-key-flickering {
+  animation: gift-key-flicker 2s linear forwards;
+}
+
+/* Top-left return-to-home button styles adopted from the original game header layout */
+.pineapple-box {
+  border-radius: 20px;
+  /* Layer 1 (Top): pattern SVG tile */
+  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10 10L25 40L-5 40Z' fill='%23FF8C00' fill-opacity='0.4'/%3E%3Cpath d='M70 60L85 90L55 90Z' fill='%23FF8C00' fill-opacity='0.3'/%3E%3Cpath d='M30 70L45 100L15 100Z' fill='%23FF8C00' fill-opacity='0.5'/%3E%3Cpath d='M80 20L95 50L65 50Z' fill='%23FF8C00' fill-opacity='0.35'/%3E%3C/svg%3E"),
+    /* Layer 2 (Bottom): base radial gradient */
+    radial-gradient(circle at center, #FFEA00 0%, #FFD700 60%, #B8860B 100%);
+  background-size: 100px 100px, 100% 100%;
+  background-repeat: repeat, no-repeat;
+}
+
+.menu-arrow {
+  position: fixed;
+  top: 8vh;
+  left: 0.5vw;
+  z-index: 1500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20vw;
+  height: 7.5vw;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.85);
+  color: #000;
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
+  /* Fixed in place; no slide-out animation */
+  transform: none;
+  transition: box-shadow 0.35s ease-out;
+}
+
+.menu-arrow:hover,
+.menu-arrow:focus-within {
+  box-shadow: 0 18px 30px rgba(0, 0, 0, 0.9);
+}
+
+.menu-arrow-label {
+  font-size: clamp(1.75rem, 2vw, 6rem);
+}
+
+.menu-arrow::before {
+  content: "";
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  transform: translate(50%, -50%);
+  pointer-events: none;
+}

@@ -1,0 +1,515 @@
+@font-face {
+  font-family: 'allSeto';
+  src: url('./allseto_subset.woff2') format('woff2');
+  font-display: swap;
+  font-weight: normal;
+  font-style: normal;
+}
+
+html,
+body{
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'allSeto';
+}
+
+button{
+  font-family: 'allSeto' !important;
+}
+
+body {
+  /* Use the canvas as a full-screen background, center the game shell */
+  background-color: #020617;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Header bar for game title: full-width at top 5% of screen */
+.game-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 10vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-image: url("data:image/svg+xml,%3Csvg width='500' height='500' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3C!-- The Flower Template --%3E%3Cg id='flower'%3E%3Cg class='petals'%3E%3Cellipse rx='5' ry='10' cy='-10'/%3E%3Cellipse rx='5' ry='10' cy='-10' transform='rotate(72)'/%3E%3Cellipse rx='5' ry='10' cy='-10' transform='rotate(144)'/%3E%3Cellipse rx='5' ry='10' cy='-10' transform='rotate(216)'/%3E%3Cellipse rx='5' ry='10' cy='-10' transform='rotate(288)'/%3E%3C/g%3E%3Ccircle r='4' fill='%23FFD700'/%3E%3C/g%3E%3C/defs%3E%3C!-- Instances of Flowers with varied petal colors --%3E%3Cuse href='%23flower' x='50' y='60' fill='%23FFFFFF' transform='rotate(10 50 60)'/%3E%3Cuse href='%23flower' x='200' y='150' fill='%23DBE2E9' transform='rotate(45 200 150)'/%3E%3Cuse href='%23flower' x='350' y='80' fill='%23FFFFFF' transform='rotate(90 350 80)'/%3E%3Cuse href='%23flower' x='120' y='320' fill='%23DBE2E9' transform='rotate(180 120 320)'/%3E%3Cuse href='%23flower' x='420' y='380' fill='%23FFFFFF' transform='rotate(250 420 380)'/%3E%3Cuse href='%23flower' x='250' y='450' fill='%23DBE2E9' transform='rotate(300 250 450)'/%3E%3C/svg%3E"), 
+  
+  /* Layer 2 (Bottom): The base strawberry radial gradient */
+  radial-gradient(circle at center, #e86363 0%, #c33d3d 100%);
+  
+  background-size: 100px 100px, 100% 100%;
+  background-repeat: repeat, no-repeat;
+  z-index: 100;
+  /* hidden / off-screen initially */
+  transform: translateX(-100%);
+  opacity: 0;
+}
+
+/* Game header roll-out animation */
+@keyframes headerRollOut {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.game-header.header-roll-out {
+  animation: headerRollOut 3s ease-in-out forwards;
+}
+
+#viewport-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  transform-origin: 0 0;
+  /* Smoothly animate back to the original full-screen view using transform only */
+  transition: transform 1.5s ease-out;
+}
+
+#viewport-container.zoomed-in {
+  /* Focus the slice from x:10vw-30vw and y:60vh-80vh by scaling and translating the container.
+     The internal layout (width/height/aspect ratio) of children is unchanged; only the
+     container transform is animated for performance. */
+  transform: scale(1.4) translateY(-25vh);
+}
+
+
+/* Full-screen jungle canvas background */
+#gameCanvas {
+
+  position: fixed;
+  inset: 0;
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+  z-index: -1;
+}
+
+.bear-sprite {
+  position: fixed;
+  top: 67.5vh;
+  left: 55vw;
+  height: 15vh;
+  width: auto;
+  object-fit: contain;
+  transform: scaleX(-1);
+  pointer-events: none;
+  z-index: 1200;
+}
+
+.bear-walking-sprite {
+  position: fixed;
+  top: 25vh;
+  left: -5vw;
+  height: 15vh;
+  width: auto;
+  object-fit: contain;
+  pointer-events: none;
+  z-index: 1200;
+}
+
+/* Centered game container over the canvas */
+.game-shell {
+
+
+  position: relative;
+  z-index: 2000; /* ensure tutorial overlay can sit above menu arrows (z-1500) */
+  padding: 1.5rem;
+  width: 100%;
+}
+
+
+/* Bear outfit pop animation */
+.bear-outfit {
+  animation: pop 0.6s ease;
+}
+
+/* Speech bubble */
+.speech-bubble {
+  position: relative;
+}
+
+.speech-bubble::after {
+  content: "";
+  position: absolute;
+  right: -12px;
+  bottom: 20px;
+  border-width: 10px 0 10px 12px;
+  border-style: solid;
+  border-color: transparent transparent transparent white;
+}
+
+/* Dialog speech bubble above helper bear */
+.dialog-speech-bubble {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1300;
+  height: 5vh;
+  width: auto;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  opacity: 0;
+  transition: opacity 0.2s ease-out;
+  animation: dialogSpeechBubbleDots 1s linear infinite;
+}
+
+@keyframes dialogSpeechBubbleDots {
+  0% {
+    background-image: url("./speech_bubble_0dot.png");
+  }
+  25% {
+    background-image: url("./speech_bubble_1dot.png");
+  }
+  50% {
+    background-image: url("./speech_bubble_2dot.png");
+  }
+  75% {
+    background-image: url("./speech_bubble_3dot.png");
+  }
+  100% {
+    background-image: url("./speech_bubble_0dot.png");
+  }
+}
+
+/* Difficulty & mode buttons */
+.difficulty-btn {
+  padding: 12px 24px;
+  margin: 8px;
+  font-size: 18px;
+  font-weight: bold;
+  border: none;
+  border-radius: 18px;
+  cursor: pointer;
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+  box-shadow: 0 6px 0 rgba(55, 65, 81, 0.25);
+}
+
+.difficulty-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 0 rgba(55, 65, 81, 0.35);
+}
+
+.difficulty-btn.easy {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+}
+
+.difficulty-btn.hard {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: white;
+}
+
+.mode-btn {
+  padding: 12px 24px;
+  margin: 8px;
+  font-size: 18px;
+  font-weight: bold;
+  border: none;
+  border-radius: 18px;
+  cursor: pointer;
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+  box-shadow: 0 6px 0 rgba(30, 64, 175, 0.7);
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: white;
+}
+
+.mode-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 0 rgba(30, 64, 175, 0.8);
+}
+
+/* Utility Animations */
+@keyframes pop {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes flyInFromTop {
+  0% {
+    transform: translateY(-100%) scale(1);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(10%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.fly-in-title {
+  animation: flyInFromTop 3s ease-out forwards;
+}
+
+
+
+/* Title fly-out animation (downwards, 2s ease-in) */
+@keyframes flyOutToBottom {
+  0% {
+    transform: translateY(0);
+    bottom: auto;
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh);
+    bottom: 0;
+    opacity: 1;
+  }
+}
+
+.fly-out-title {
+  animation: flyOutToBottom 1s ease-in forwards;
+}
+
+/* Slide-out menu labels */
+.menu-container {
+  position: fixed;
+  top: 15%;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 1500;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease-out;
+}
+
+.menu-container.menu-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.menu-arrow {
+  position: relative;
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 10px 18px;
+  min-height: 56px;
+  width: auto;
+  max-width: 80vw;
+  box-shadow: none;
+  color: #000;
+  font-weight: bold;
+  border: 3px solid #000;
+  cursor: default;
+  background: transparent;
+  white-space: pre-line;
+  transform: translateX(calc(-100% + 30px));
+  transition: transform 1s ease-out;
+}
+
+.menu-arrow.menu-arrow-visible {
+  transform: translateX(0);
+}
+
+.strawberry-box {
+  border-radius: 20px;
+  background-image: url("data:image/svg+xml,%3Csvg width='500' height='500' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3C!-- The Flower Template --%3E%3Cg id='flower'%3E%3Cg class='petals'%3E%3Cellipse rx='5' ry='10' cy='-10'/%3E%3Cellipse rx='5' ry='10' cy='-10' transform='rotate(72)'/%3E%3Cellipse rx='5' ry='10' cy='-10' transform='rotate(144)'/%3E%3Cellipse rx='5' ry='10' cy='-10' transform='rotate(216)'/%3E%3Cellipse rx='5' ry='10' cy='-10' transform='rotate(288)'/%3E%3C/g%3E%3Ccircle r='4' fill='%23FFD700'/%3E%3C/g%3E%3C/defs%3E%3C!-- Instances of Flowers with varied petal colors --%3E%3Cuse href='%23flower' x='50' y='60' fill='%23FFFFFF' transform='rotate(10 50 60)'/%3E%3Cuse href='%23flower' x='200' y='150' fill='%23DBE2E9' transform='rotate(45 200 150)'/%3E%3Cuse href='%23flower' x='350' y='80' fill='%23FFFFFF' transform='rotate(90 350 80)'/%3E%3Cuse href='%23flower' x='120' y='320' fill='%23DBE2E9' transform='rotate(180 120 320)'/%3E%3Cuse href='%23flower' x='420' y='380' fill='%23FFFFFF' transform='rotate(250 420 380)'/%3E%3Cuse href='%23flower' x='250' y='450' fill='%23DBE2E9' transform='rotate(300 250 450)'/%3E%3C/svg%3E"), 
+  
+  /* Layer 2 (Bottom): The base strawberry radial gradient */
+  radial-gradient(circle at center, #e86363 0%, #c33d3d 100%);
+  
+  /* Background settings */
+  background-repeat: repeat, no-repeat;
+  background-size: 500px 500px, 100% 100%;
+}
+
+/* Dialog system styles */
+#dialogContent {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 0 0 2.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  transition: opacity 0.25s ease;
+}
+
+/* Smooth horizontal repositioning of the dialog box when the
+   bamboo choice pane is visible/hidden. */
+#infoBox {
+  transition:
+    opacity 0.25s ease,
+    transform 0.6s ease-out,
+    left 0.6s ease-out;
+}
+
+/* Dialog box layout adjustments when choice pane is visible */
+#infoBox.dialog-box-narrow {
+  width: 42vw; /* 60% of original 70vw */
+  min-width: 42vw; /* override Tailwind's min-w-[70vw] so the box can actually shrink */
+  left: calc((calc(70vw / 617 * 399))/2 - 10.5vw);      /*bamboo frame only*/
+  transform: translateX(0);
+}
+
+
+
+
+.dialog-standard-text {
+  color: #374151; /* dark grey */
+  font-size: 30px;
+  line-height: 1.3;
+  white-space: pre-line; /* respect \n as line breaks */
+}
+
+.dialog-continue-hint {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  text-align: right;
+  color: #374151;
+  font-size: 1.25rem;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+/* Reusable pushable button styles (dialog choices, tutorial controls, etc.) */
+.pushable-button {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin-top: 20px;
+  cursor: pointer;
+}
+
+.pushable-button .front {
+  display: block;
+  padding: 10px 20px;
+  min-width: 220px;
+  border-radius: 20px;
+  font-size: 30px;
+  text-align: center;
+  box-shadow: 0 6px 0 rgba(55, 65, 81, 0.25);
+  transform: translateY(-4px);
+  transition:
+    transform 600ms cubic-bezier(.3, .7, .4, 1),
+    background-color 150ms ease-out,
+    box-shadow 150ms ease-out,
+    filter 150ms ease-out;
+}
+
+/* Default colours for dialog choice buttons */
+.dialog-choice-button .front {
+  background-color: #f3f0e0; /* original background */
+  color: #374151; /* original text colour */
+  border: 5px solid #374151; /* original border */
+}
+
+.pushable-button:hover .front {
+  transform: translateY(-6px);
+  box-shadow: 0 8px 0 rgba(55, 65, 81, 0.35);
+  filter: brightness(1.05);
+  transition:
+    transform 250ms cubic-bezier(.3, .7, .4, 1.5),
+    background-color 150ms ease-out,
+    box-shadow 150ms ease-out,
+    filter 150ms ease-out;
+}
+
+.pushable-button:active .front {
+  transform: translateY(-2px);
+  transition: transform 34ms;
+}
+
+.pushable-button:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Tutorial specific button colours */
+.tutorial-close-button .front {
+  background-color: #de3163;
+  color: #ffffff;
+  border: 5px solid #374151;
+}
+
+.tutorial-nav-button .front {
+  background-color: #f3f0e0;
+  color: #374151;
+  border: 5px solid #374151;
+}
+
+.tutorial-finish-button .front {
+  background-color: #22c55e;
+  color: #ffffff;
+  border: 5px solid #374151;
+}
+
+/* Sliding bamboo choice pane on the right */
+.choice-pane {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  width: calc(90vh / 617 * 399);
+  height: 90vh;
+  background-image: url("./bamboo_frame.png");
+  background-size: cover;
+  background-repeat: no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateX(100%);
+  transition: transform 0.6s ease-out;
+  z-index: 1700; /* below tutorial overlay (1800/1900), above general content */
+  pointer-events: none;
+}
+
+.choice-pane-visible {
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.choice-pane-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* vertically center options inside bamboo frame */
+  align-items: center;
+  gap: 2vh;
+  overflow-y: auto;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+
+
+.choice-pane-row {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}

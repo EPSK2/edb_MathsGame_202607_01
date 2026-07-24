@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>香橙熊數綫尋寶 - 主選單</title>
+    <link rel="stylesheet" href="./menu_style_2.css" />
+  <link rel="stylesheet" href="./prep_style.css" />
+  <!-- Preload the helper bear image used in the final zoom animation -->
+  <link rel="preload" href="./bear_trans_blue.png" as="image" />
+    <script src="https://cdn.tailwindcss.com"></script>
+
+</head>
+<body>
+    <div id="viewport-container">
+    <canvas id="gameCanvas"></canvas>
+
+        <img
+      id="helperBearSprite"
+      class="bear-sprite"
+      src="./bear_back.png"
+      alt="水果熊助手"
+    />
+
+
+    <div id="dialogSpeechBubble" class="dialog-speech-bubble"></div>
+
+    <img
+      id="walkingBearSprite"
+      class="bear-walking-sprite"
+      src="./bear_side.png"
+      alt="水果熊行走"
+    />
+
+    <header class="game-header">
+
+
+      <h1
+        class="font-bold text-center text-rose-900 drop-shadow-sm"
+        style="font-size:8vh"
+      >
+        🍊香橙村任務1  數線尋寶
+      </h1>
+    </header>
+
+    <div id="menu" class="menu-container" style="display:none;">
+
+      <div class="menu-arrow strawberry-box">
+
+        
+      </div>
+    </div>
+    
+    <div id="menuShell" class="game-shell max-w-3xl mx-auto flex flex-col items-center justify-center min-h-screen">
+      <h1 id="gameTitle" class="text-4xl md:text-5xl font-bold text-center mb-8 text-amber-600 drop-shadow-md bg-white/80 px-6 py-5 rounded-3xl shadow-lg">
+        🍊香橙島任務1：數線尋寶
+      </h1>
+
+                  <!-- 中央透明提示框 -->
+      <div
+        id="infoBox"
+        class="fixed top-[20%] left-1/2 -translate-x-1/2 bg-[#fffff0] border-4 border-[#f65555] rounded-2xl shadow-xl px-6 py-4 opacity-0 pointer-events-none transition-opacity duration-100 min-w-[70vw] min-h-[40vh]"
+      >
+        <!-- 左上角標籤 -->
+        <div id="speakerLabelContainer" class="absolute left-0 top-0 -translate-y-full transform">
+          <div class="bg-[#f65555] px-3 py-4 flex items-center rounded-t-md w-[22.5vw]">
+            <span
+              id="speakerLabel"
+              class="text-white text-[24px] leading-none text-center w-full"
+            >
+              士多啤梨熊助手
+            </span>
+          </div>
+        </div>
+
+              <!-- 對話內容容器 -->
+        <div id="dialogContent" class="w-full h-full flex flex-col items-center justify-center text-center"></div>
+      </div>
+
+            <!-- 教學視窗覆蓋層 -->
+      <div
+        id="tutorialOverlay"
+        class="fixed inset-0 bg-black/75 z-[1800] hidden"
+      ></div>
+
+
+      <!-- 教學視窗 -->
+      <div
+        id="tutorialWindow"
+        class="fixed top-[5%] left-[5%] right-[5%] bottom-[5%] bg-[#fffff0] border-4 border-[#f65555] rounded-2xl shadow-xl px-6 py-4 hidden z-[1900] flex flex-col"
+      >
+        <!-- 關閉按鈕 -->
+        <button
+          id="tutorialCloseButton"
+          type="button"
+          class="tutorial-close-button pushable-button absolute top-3 right-4"
+        >
+          <span class="front">退出❌</span>
+        </button>
+
+        <!-- 教學內容主區 -->
+        <div
+          id="tutorialContent"
+          class="flex-1 flex items-center justify-center text-center px-4 py-4 overflow-y-auto"
+        ></div>
+
+        <!-- 底部導航列 -->
+        <div class="mt-4 flex items-center justify-center gap-4">
+          <button
+            id="tutorialPrevButton"
+            type="button"
+            class="tutorial-nav-button pushable-button"
+          >
+            <span class="front">⬅️上一頁</span>
+          </button>
+
+          <span
+            id="tutorialPageIndicator"
+            class="text-xl text-gray-700"
+          >
+            第 1/4 頁
+          </span>
+
+          <button
+            id="tutorialNextButton"
+            type="button"
+            class="tutorial-nav-button pushable-button"
+          >
+            <span class="front">➡️下一頁</span>
+          </button>
+
+          <button
+            id="tutorialFinishButton"
+            type="button"
+            class="tutorial-finish-button pushable-button hidden"
+          >
+            <span class="front">✅完成教程</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右側滑入選項竹框 -->
+    <div id="choicePane" class="choice-pane">
+      <div id="choicePaneContent" class="choice-pane-content"></div>
+    </div>
+  </div>
+
+  <script src="./prep_script.js"></script>
+  <script src="./menu_script_2.js"></script>
+</body>
+</html>

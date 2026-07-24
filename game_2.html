@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>士多啤梨熊數綫尋寶 - 2.5D 叢林背景</title>
+  <link rel="stylesheet" href="./game_style_2.css" />
+  <link rel="stylesheet" href="./prep_style.css" />
+  <!-- 使用 Tailwind CDN 以支援原本的樣式類別 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+
+    <!-- 2.5D Jungle Canvas Background -->
+  <canvas id="gameCanvas"></canvas>
+
+
+    <!-- Black steel bar and claw machine clamp -->
+  <div id="clawBar"></div>
+        <img
+    id="clawMachineImage"
+    src="./trendy-grab-machine-vector_open.png"
+    alt="Claw machine clamp"
+  />
+
+
+
+  <!--
+  <audio id="sfxPlaceCorrect" src="" preload="auto" style="display: none;"></audio>
+  <audio id="sfxPlaceWrong" src="" preload="auto" style="display: none;"></audio>
+  <audio id="sfxCorrectHappy" src="" preload="auto" style="display: none;"></audio>
+  <audio id="sfxMiddleLevelSuccess" src="./middle_level_success.mp3" preload="auto" style="display: none;"></audio>
+
+
+  <audio id="voiceRoboticInput" src="./voice_human_input.mp3" preload="auto" style="display: none;"></audio>
+  <audio id="voiceRoboticError" src="./voice_human_overflow.mp3" preload="auto" style="display: none;"></audio>
+  <audio id="voiceHumanFail" src="./voice_human_fail.mp3" preload="auto" style="display: none;"></audio>
+  <audio id="voiceHumanHopefulFail" src="./voice_human_hopeful_fail.mp3" preload="auto" style="display: none;"></audio>
+  <audio id="clawAttemptFail" src="./claw_attempt_fail.mp3" preload="auto" style="display: none;"></audio>
+  <audio id="clawAttemptSuccess" src="./claw_attempt_success.mp3" preload="auto" style="display: none;"></audio>
+  <audio id="totalVictory" src="./total_victory.mp3" preload="auto" style="display: none;"></audio>
+  <audio id="runningGear" src="./running_gear.mp3" preload="auto" style="display: none;"></audio>
+  <audio id="panelButton" src="./panel_button.mp3" preload="auto" style="display: none;"></audio>
+
+  <audio id="voiceVictorySuccess01" src="./voice_human_success_01.mp3" preload="auto" style="display: none;"></audio>
+  <audio id="voiceVictorySuccess02" src="./voice_human_success_02.mp3" preload="auto" style="display: none;"></audio>
+  <audio id="voiceVictorySuccess03" src="./voice_human_success_03.mp3" preload="auto" style="display: none;"></audio>
+  <audio id="voiceVictorySuccess04" src="./voice_human_success_04.mp3" preload="auto" style="display: none;"></audio>
+  <audio id="voiceVictorySuccess05" src="./voice_human_success_05.mp3" preload="auto" style="display: none;"></audio> -->
+
+
+    <!-- Helper Bear Image -->
+  <!-- <img
+    id="pineappleBearImage"
+    src="./stb_helper_concentrated.png"
+    alt="士多啤梨熊圖片"
+    style="position: fixed; top: 60%; left: 1%; transform: scale(0.25); transform-origin: top left; pointer-events: none;"
+  /> -->
+
+
+    <!--<img
+    id="yellowBubbleImage"
+    src="./yellow_bubble.png"
+    alt="黃色對話泡泡"
+    style="position: fixed; pointer-events: none; display: none; z-index: 10; transform: translateY(-90%) translateX(-2.5%) scale(0.4); transform-origin: bottom left;"
+  />
+  <div id="yellowBubbleText" aria-live="polite" aria-atomic="true"></div> -->
+  
+  <!-- Gift position input panel -->
+  <div
+    id="giftControlPanel"
+    class="gift-control-panel hidden"
+    aria-hidden="true"
+  >
+    <div class="gift-keyboard-number">
+      <div id="giftMonitor" class="gift-monitor gift-monitor-tall">
+        <div
+          id="giftMonitorMessage"
+          class="gift-monitor-message"
+        ></div>
+        <div
+          id="giftMonitorInput"
+          class="gift-monitor-input"
+        ></div>
+      </div>
+
+      <div class="gift-keyboard-row">
+        <button
+          id="giftKey0"
+          class="gift-key-btn gift-key-digit"
+          type="button"
+          data-key="0"
+        >
+          0
+        </button>
+        <button
+          class="gift-key-btn gift-key-digit"
+          type="button"
+          data-key="1"
+        >
+          1
+        </button>
+        <button
+          class="gift-key-btn gift-key-digit"
+          type="button"
+          data-key="2"
+        >
+          2
+        </button>
+        <button
+          class="gift-key-btn gift-key-digit"
+          type="button"
+          data-key="3"
+        >
+          3
+        </button>
+        <button
+          class="gift-key-btn gift-key-digit"
+          type="button"
+          data-key="4"
+        >
+          4
+        </button>
+        <button
+          id="giftKeyReset"
+          class="gift-key-btn"
+          type="button"
+          style="background-color: #f97316;"
+        >
+          🔄
+        </button>
+      </div>
+
+      <div class="gift-keyboard-row">
+        <button
+          class="gift-key-btn gift-key-digit"
+          type="button"
+          data-key="5"
+        >
+          5
+        </button>
+        <button
+          class="gift-key-btn gift-key-digit"
+          type="button"
+          data-key="6"
+        >
+          6
+        </button>
+        <button
+          class="gift-key-btn gift-key-digit"
+          type="button"
+          data-key="7"
+        >
+          7
+        </button>
+        <button
+          class="gift-key-btn gift-key-digit"
+          type="button"
+          data-key="8"
+        >
+          8
+        </button>
+        <button
+          class="gift-key-btn gift-key-digit"
+          type="button"
+          data-key="9"
+        >
+          9
+        </button>
+        <button
+          id="giftKeyMove"
+          class="gift-key-btn"
+          type="button"
+          style="background-color: #22c55e;"
+        >
+          ✅
+        </button>
+      </div>
+    </div>
+  </div>
+
+    <!-- Top-left slide-out menu arrow -->
+  <button
+    id="menuArrow"
+    class="menu-arrow pineapple-box"
+    onclick="returnToMenu()"
+    type="button"
+  >
+    <span class="menu-arrow-label">
+      <span style="font-size:2em">🏠</span> 返回菜單
+    </span>
+  </button>
+    <div id="gameShell" class="game-shell max-w-3xl mx-auto">
+        <!-- 頂部標題列 -->
+    <header class="game-header">
+      <h1
+        id="gameTitle"
+        class="text-2xl md:text-4xl font-bold text-center text-amber-600 drop-shadow-sm"
+      >
+        🍓 士多啤梨熊數綫尋寶 🍓
+      </h1>
+      <span
+        class="mx-4 text-2xl md:text-4xl font-bold text-amber-600 drop-shadow-sm"
+      >
+        |
+      </span>
+            <span
+        id="rangeInfo"
+        class="text-xl md:text-2xl font-bold text-amber-600 drop-shadow-sm"
+      ></span>
+      <span style="display: none;">
+      <span
+        class="mx-4 text-2xl md:text-4xl font-bold text-amber-600 drop-shadow-sm"
+      >
+        |
+      </span>
+            <span
+        id="precisionInfo"
+        class="text-xl md:text-2xl font-bold text-amber-600 drop-shadow-sm"
+      ></span>
+      </span>
+    </header>
+
+    <!-- 主菜單容器：新版流程中不顯示任何內容，僅作結構及後備使用 -->
+    <div id="mainMenu" class="hidden"></div>
+
+        <!-- 遊戲區：登入及主選單後直接顯示 -->
+    <div id="gameArea">
+
+        <!-- 結果顯示 -->
+
+      <div
+        id="result"
+        class="text-xl md:text-3xl font-bold text-center mb-6"
+      ></div>
+
+
+      <!-- 寶箱 -->
+      <div id="treasure" class="hidden mb-6">
+        <div id="chest" class="w-40 h-28 mx-auto relative chest">
+          <div
+            class="chest-lid w-40 h-12 bg-gradient-to-b from-yellow-300 to-yellow-400 rounded-t-3xl border-4 border-orange-400 absolute top-0 flex items-center justify-center"
+          >
+            <div
+              class="w-8 h-6 bg-yellow-600 rounded-full border-2 border-yellow-700"
+            ></div>
+          </div>
+          <div
+            class="w-40 h-16 bg-gradient-to-b from-orange-300 to-orange-400 rounded-b-3xl border-4 border-orange-500 absolute bottom-0 flex items-center justify-center"
+          >
+            <div class="text-2xl" id="treasureContent">🎁</div>
+          </div>
+        </div>
+        <p id="outfitName" class="text-lg font-bold text-amber-700 mt-3"></p>
+      </div>
+
+      <div
+        class="flex flex-col md:flex-row justify-center items-center gap-4 md:gap-6"
+      >
+        <!-- 對話框 -->
+        <div
+          class="speech-bubble rounded-3xl p-4 max-w-xs order-2 md:order-1"
+        >
+          <p id="speech" class="text-lg md:text-xl">
+            
+          </p>
+        </div>
+    </div>
+  </div>
+
+  </div>
+
+    <!-- 勝利模態 -->
+  <div id="victoryModal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <p id="victoryMessage" class="victory-message mb-8"></p>
+      <div id="victoryButtons" class="victory-buttons">
+        <button
+          id="victoryPrimaryButton"
+          type="button"
+          class="victory-button"
+        ></button>
+        <button
+          id="victorySecondaryButton"
+          type="button"
+          class="victory-button hidden"
+        ></button>
+      </div>
+    </div>
+  </div>
+
+  <div
+    id="bottomModeArrowStrip"
+    class="flex items-center justify-center"
+    aria-hidden="true"
+    style="
+      position: fixed;
+      align-items: center;
+      filter: drop-shadow(4px 4px 0 rgba(255,255,255,0.5));
+      gap: 0.5vw;
+    "
+  >
+    <!-- Treat the number line as a single SVG element between two simple labels -->
+    <!--<span
+      class="text-3xl"
+      style="color:white; display: flex; align-items: center; line-height: 1; text-shadow: 2px 2px 0 rgba(255,255,255,0.6);"
+    >
+      小
+    </span>-->
+
+    <svg
+      id="numberLineSVG"
+      viewBox="0 0 5000 200"
+      class="w-full h-auto"
+      style="display: block;"
+    >
+            <!-- Depth layer: arrow spans almost the full SVG width for a longer visual axis -->
+      <line
+        id="mainAxisBack"
+        x1="50"
+        y1="84"
+        x2="4950"
+        y2="84"
+        stroke="rgba(150,150,150,0.55)"
+        stroke-width="24"
+      />
+      <!-- Back arrowheads (manual polygons, no markers) -->
+      <!-- <polygon
+        id="mainAxisBackLeftArrow"
+        points="10 84, 110 4, 110 164"
+        fill="rgba(150,150,150,0.55)"
+      />
+      <polygon
+        id="mainAxisBackRightArrow"
+        points="4990 84, 4890 4, 4890 164"
+        fill="rgba(150,150,150,0.55)"
+      /> -->
+
+      <!-- Main Horizontal Line: matching extended axis in the foreground layer -->
+      <line
+        id="mainAxis"
+        x1="50"
+        y1="80"
+        x2="4950"
+        y2="80"
+        stroke="white"
+        stroke-width="18"
+      />
+      <!-- Foreground arrowheads (manual polygons, no markers) -->
+      <!-- <polygon
+        id="mainAxisLeftArrow"
+        points="10 80, 50 72, 50 88"
+        fill="white"
+      />
+      <polygon
+        id="mainAxisRightArrow"
+        points="4990 80, 4950 72, 4950 88"
+        fill="white"
+      />!-->
+
+      <!-- Dynamic Tick Marks and Labels will be injected here by game_script.js -->
+      <g id="ticksGroupBack"></g>
+      <g id="labelsGroupBack"></g>
+      <g id="ticksGroup"></g>
+      <g id="labelsGroup"></g>
+
+    </svg>
+
+    <!-- <span
+      class="text-5xl"
+      style="color:white; display: flex; align-items: center; line-height: 1; text-shadow: 3px 3px 0 rgba(255,255,255,0.6);"
+    >
+      大
+    </span> -->
+  </div>
+
+  
+
+    <script src="./game_cookie.js"></script>
+  <script src="./prep_script.js"></script>
+  <script src="./game_script_2.js"></script>
+
+<script>
+  // Web Audio–based sound manager
+  (function () {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+
+    // If Web Audio is not supported, expose no‑op functions so game_script_2.js doesn’t break
+    if (!AudioContext) {
+      const noop = function () {};
+      window.playPlaceCorrectSfx = noop;
+      window.playPlaceWrongSfx = noop;
+      window.playCorrectHappySfx = noop;
+      window.playMiddleLevelSuccessSfx = noop;
+      window.playVoiceRoboticInput = noop;
+      window.playVoiceRoboticError = noop;
+      window.playVoiceRoboticFail = noop;
+      window.playClawAttemptFail = noop;
+      window.playClawAttemptSuccess = noop;
+      window.playTotalVictory = noop;
+      window.playRunningGearSegment = noop;
+      window.playPanelButtonClick = noop;
+      window.playVictorySuccessVoice = noop;
+      window.stopVictorySuccessVoice = noop;
+      console.warn('Web Audio API not supported; audio disabled.');
+      return;
+    }
+
+        const audioContext = new AudioContext();
+    const buffers = {};
+    const loadingPromises = {};
+
+    // Map logical IDs to audio files (only ones that had non‑empty src)
+    const audioFiles = {
+      // These three had empty src in your HTML; leave them unmapped (no sound)
+      sfxPlaceCorrect: null,
+      sfxPlaceWrong: null,
+      sfxCorrectHappy: null,
+
+      sfxMiddleLevelSuccess: './middle_level_success.mp3',
+      voiceRoboticInput: './voice_human_input.mp3',
+      voiceRoboticError: './voice_human_overflow.mp3',
+      voiceHumanFail: './voice_human_fail.mp3',
+      voiceHumanHopefulFail: './voice_human_hopeful_fail.mp3',
+      clawAttemptFail: './claw_attempt_fail.mp3',
+      clawAttemptSuccess: './claw_attempt_success.mp3',
+      totalVictory: './total_victory.mp3',
+      runningGear: './running_gear.mp3',
+      panelButton: './panel_button.mp3',
+      voiceVictorySuccess01: './voice_human_success_01.mp3',
+      voiceVictorySuccess02: './voice_human_success_02.mp3',
+      voiceVictorySuccess03: './voice_human_success_03.mp3',
+      voiceVictorySuccess04: './voice_human_success_04.mp3',
+      voiceVictorySuccess05: './voice_human_success_05.mp3'
+    };
+
+    // Shared URL sanitiser for audio file requests.
+    // Strips control characters (including null bytes) and validates
+    // protocol before passing URLs into fetch/decodeAudioData.
+    const CONTROL_CHARS_REGEX = /[\u0000-\u001F\u007F]/g;
+
+    function sanitizeMediaUrl(raw) {
+      if (typeof raw !== 'string') {
+        console.warn('[Audio] non-string URL', raw);
+        return null;
+      }
+
+      const cleaned = raw.replace(CONTROL_CHARS_REGEX, '').trim();
+      if (!cleaned) {
+        console.warn('[Audio] cleaned URL is empty', { raw });
+        return null;
+      }
+
+      let urlObj;
+      try {
+        urlObj = new URL(cleaned, window.location.origin);
+      } catch (e) {
+        console.warn('[Audio] invalid URL format', { cleaned, error: e });
+        return null;
+      }
+
+      const protocol = urlObj.protocol;
+      if (
+        protocol !== 'http:' &&
+        protocol !== 'https:' &&
+        protocol !== 'blob:' &&
+        protocol !== 'data:'
+      ) {
+        console.warn('[Audio] disallowed protocol', { url: urlObj.toString() });
+        return null;
+      }
+
+      return urlObj.toString();
+    }
+
+    // Also expose a global sanitiser for other scripts (e.g. menu_2.html).
+    if (!window.sanitizeMediaUrl) {
+      window.sanitizeMediaUrl = sanitizeMediaUrl;
+    }
+
+
+    // Unlock audio context on first user interaction (required by many browsers)
+    function unlockAudioContextOnFirstInteraction() {
+      const unlock = function () {
+        if (audioContext.state === 'suspended') {
+          audioContext.resume().catch(function () {});
+        }
+        document.removeEventListener('click', unlock);
+        document.removeEventListener('keydown', unlock);
+        document.removeEventListener('touchstart', unlock);
+      };
+      document.addEventListener('click', unlock);
+      document.addEventListener('keydown', unlock);
+      document.addEventListener('touchstart', unlock);
+    }
+
+    unlockAudioContextOnFirstInteraction();
+
+        function loadBuffer(id) {
+      if (buffers[id]) {
+        return Promise.resolve(buffers[id]);
+      }
+      const rawUrl = audioFiles[id];
+      if (!rawUrl) {
+        return Promise.reject(new Error('No audio file configured for id: ' + id));
+      }
+
+      const url = sanitizeMediaUrl(rawUrl);
+      if (!url) {
+        return Promise.reject(new Error('Invalid audio URL for id: ' + id));
+      }
+
+            if (!loadingPromises[id]) {
+        loadingPromises[id] = fetch(url, { cache: 'no-store' })
+          .then(function (response) {
+            if (!response.ok) {
+              throw new Error('HTTP ' + response.status + ' while loading ' + id);
+            }
+            const contentType = response.headers.get('Content-Type') || '';
+            if (!/audio|octet-stream/i.test(contentType)) {
+              throw new Error('Unexpected content-type "' + contentType + '" for ' + id);
+            }
+            return response.arrayBuffer();
+          })
+          .then(function (data) {
+            // Use callback form of decodeAudioData to avoid subtle promise/GC races
+            return new Promise(function (resolve, reject) {
+              audioContext.decodeAudioData(
+                data,
+                function (buffer) {
+                  resolve(buffer);
+                },
+                function (err) {
+                  reject(err || new Error('decodeAudioData failed for ' + id));
+                }
+              );
+            });
+          })
+          .then(function (buffer) {
+            buffers[id] = buffer;
+            return buffer;
+          })
+          .catch(function (err) {
+            console.error('[Audio] Failed to load', id, 'from', url, err);
+            // Cache the failure so we don't keep retrying this id.
+            buffers[id] = null;
+            return null;
+          });
+      }
+
+      return loadingPromises[id];
+    }
+
+
+
+        function playBuffer(id, options) {
+      options = options || {};
+      loadBuffer(id)
+        .then(function (buffer) {
+          if (!buffer) {
+            // This id failed to load or decode; skip playback.
+            return null;
+          }
+
+          const source = audioContext.createBufferSource();
+          source.buffer = buffer;
+          source.connect(audioContext.destination);
+
+          const offset = options.offset || 0;
+          const duration = options.duration;
+
+          try {
+            if (typeof duration === 'number') {
+              source.start(0, offset, duration);
+            } else {
+              source.start(0, offset);
+            }
+          } catch (e) {
+            console.error('[Audio] bufferSource.start() failed for', id, e);
+            return null;
+          }
+
+          if (typeof options.onended === 'function') {
+            source.onended = options.onended;
+          }
+
+          return source;
+        })
+        .catch(function (err) {
+          // Fail silently to avoid breaking gameplay, but log once for diagnostics.
+          console.error('[Audio] playBuffer error for', id, err);
+        });
+    }
+
+
+    // Preload all configured audio buffers to minimise latency
+    Object.keys(audioFiles).forEach(function (id) {
+      if (audioFiles[id]) {
+        loadBuffer(id).catch(function () {});
+      }
+    });
+
+    // === Public API (same function names as before) ===
+
+    window.playPlaceCorrectSfx = function () {
+      playBuffer('sfxPlaceCorrect');
+    };
+
+    window.playPlaceWrongSfx = function () {
+      playBuffer('sfxPlaceWrong');
+    };
+
+    window.playCorrectHappySfx = function () {
+      playBuffer('sfxCorrectHappy');
+    };
+
+    window.playMiddleLevelSuccessSfx = function () {
+      playBuffer('sfxMiddleLevelSuccess');
+    };
+
+    window.playVoiceRoboticInput = function () {
+      playBuffer('voiceRoboticInput');
+    };
+
+    window.playVoiceRoboticError = function () {
+      playBuffer('voiceRoboticError');
+    };
+
+    window.playVoiceRoboticFail = function (diff) {
+      var id = Math.abs(diff) > 3 ? 'voiceHumanHopefulFail' : 'voiceHumanFail';
+      playBuffer(id);
+    };
+
+    window.playClawAttemptFail = function () {
+      playBuffer('clawAttemptFail');
+    };
+
+    window.playClawAttemptSuccess = function () {
+      playBuffer('clawAttemptSuccess');
+    };
+
+    window.playTotalVictory = function () {
+      playBuffer('totalVictory');
+    };
+
+    // Play only the last ~3 seconds segment (starting at 6s) of running_gear.mp3
+    window.playRunningGearSegment = function () {
+      playBuffer('runningGear', { offset: 6 });
+    };
+
+    window.playPanelButtonClick = function () {
+      playBuffer('panelButton');
+    };
+
+    // Victory success voices (random variant) + ability to stop them
+    var victoryIds = [
+      'voiceVictorySuccess01',
+      'voiceVictorySuccess02',
+      'voiceVictorySuccess03',
+      'voiceVictorySuccess04',
+      'voiceVictorySuccess05'
+    ];
+
+    var activeVictorySources = [];
+
+    window.playVictorySuccessVoice = function () {
+      var index = Math.floor(Math.random() * victoryIds.length);
+      var chosenId = victoryIds[index];
+
+      loadBuffer(chosenId)
+        .then(function (buffer) {
+          var source = audioContext.createBufferSource();
+          source.buffer = buffer;
+          source.connect(audioContext.destination);
+          source.start(0);
+
+          activeVictorySources.push(source);
+          source.onended = function () {
+            activeVictorySources = activeVictorySources.filter(function (s) {
+              return s !== source;
+            });
+          };
+        })
+        .catch(function () {});
+    };
+
+    window.stopVictorySuccessVoice = function () {
+      activeVictorySources.forEach(function (source) {
+        try {
+          source.stop();
+        } catch (e) {}
+      });
+      activeVictorySources = [];
+    };
+  })();
+
+
+
+
+  (function () {
+    const bear = document.getElementById('pineappleBearImage');
+    const bubble = document.getElementById('yellowBubbleImage');
+    const bubbleText = document.getElementById('yellowBubbleText');
+
+    function positionBubble() {
+      if (!bear || !bubble) return;
+      const rect = bear.getBoundingClientRect();
+      bubble.style.left = `${rect.right}px`;
+      bubble.style.top = `${rect.top}px`;
+      bubble.style.display = 'block';
+
+      if (bubbleText) {
+        const bubbleRect = bubble.getBoundingClientRect();
+        bubbleText.style.left = `${bubbleRect.left + bubbleRect.width / 2}px`;
+        bubbleText.style.top = `${bubbleRect.top + bubbleRect.height / 2}px`;
+        bubbleText.style.display = 'flex';
+      }
+    }
+
+    window.addEventListener('load', positionBubble);
+    window.addEventListener('resize', positionBubble);
+  })();
+  </script>
+</body>
+</html>

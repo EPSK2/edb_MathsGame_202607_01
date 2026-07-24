@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Thick Black Claw Machine Clamp</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f0f0f0; /* Light background to contrast the black claw */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    canvas {
+      display: block;
+      cursor: move;
+    }
+  </style>
+</head>
+<body>
+
+<canvas class="zdog-canvas" width="600" height="600"></canvas>
+
+<!-- Include Zdog -->
+<script src="https://unpkg.com/zdog@1/dist/zdog.dist.min.js"></script>
+<script>
+  // 1. Setup Illustration
+  const illo = new Zdog.Illustration({
+    element: '.zdog-canvas',
+    dragRotate: true,
+    zoom: 1.2,
+  });
+
+  // 2. Palette (Blacks and extremely dark greys for depth)
+  const colors = {
+    pureBlack: '#000000',
+    deepCharcoal: '#0a0a0a',
+    matteBlack: '#111111',
+    darkGrey: '#1a1a1a',
+    highlightGrey: '#222222'
+  };
+
+  // Main anchor to hold the entire assembly
+  const clawAssembly = new Zdog.Anchor({
+    addTo: illo,
+    translate: { y: -50 } // Shift up slightly to center the whole unit
+  });
+
+  // --- TOP HOUSING & CABLE ---
+
+  // Drop cable (Top)
+  new Zdog.Shape({
+    addTo: clawAssembly,
+    path: [{ y: -150 }, { y: -80 }],
+    stroke: 12,
+    color: colors.darkGrey,
+  });
+
+  // Main Cylinder Housing
+  new Zdog.Cylinder({
+    addTo: clawAssembly,
+    diameter: 50,
+    length: 60,
+    stroke: false,
+    color: colors.matteBlack,
+    backface: colors.pureBlack,
+    rotate: { x: Zdog.TAU / 4 },
+    translate: { y: -60 }
+  });
+
+  // Top Housing Cap
+  new Zdog.Cylinder({
+    addTo: clawAssembly,
+    diameter: 54,
+    length: 10,
+    stroke: false,
+    color: colors.pureBlack,
+    rotate: { x: Zdog.TAU / 4 },
+    translate: { y: -90 }
+  });
+
+  // Bottom Housing Cap (Anchor point for arms)
+  new Zdog.Cylinder({
+    addTo: clawAssembly,
+    diameter: 54,
+    length: 15,
+    stroke: false,
+    color: colors.pureBlack,
+    rotate: { x: Zdog.TAU / 4 },
+    translate: { y: -30 }
+  });
+
+  // Central Actuator Shaft
+  new Zdog.Cylinder({
+    addTo: clawAssembly,
+    diameter: 16,
+    length: 40,
+    stroke: false,
+    color: "#3f9b0b",
+    rotate: { x: Zdog.TAU / 4 },
+    translate: { y: -5 }
+  });
+
+  // Sliding Actuator Hub
+  new Zdog.Polygon({
+    addTo: clawAssembly,
+    radius: 20,
+    sides: 6,
+    stroke: 10,
+    color: "#3f9b0b",
+    rotate: { x: Zdog.TAU / 4 },
+    translate: { y: 15 }
+  });
+
+  // --- THE CLAW PRONGS (3-Way Rotational Symmetry) ---
+
+  for (let i = 0; i < 3; i++) {
+    // Create an anchor for each arm, rotated evenly around the Y axis
+    const armAnchor = new Zdog.Anchor({
+      addTo: clawAssembly,
+      rotate: { y: (Zdog.TAU / 3) * i }
+    });
+
+    // 1. Upper Diagonal Strut (Connects housing to knuckle)
+    new Zdog.Shape({
+      addTo: armAnchor,
+      path: [
+        { y: -30, z: 27 }, // Attach to bottom housing cap
+        { y: 15, z: 80 }   // Knuckle joint
+      ],
+      stroke: 14, // THICK
+      color: "#3f9b0b",
+    });
+
+    // 2. Horizontal Actuator Linkage (Connects sliding hub to knuckle)
+    new Zdog.Shape({
+      addTo: armAnchor,
+      path: [
+        { y: 15, z: 20 }, // Attach to actuator hub
+        { y: 15, z: 80 }  // Knuckle joint
+      ],
+      stroke: 12,
+      color: "#e42100",
+    });
+
+    // 3. Knuckle Joint Bolt (Detail)
+    new Zdog.Shape({
+      addTo: armAnchor,
+      stroke: 18,
+      color: "#fcd2df",
+      translate: { y: 15, z: 80 }
+    });
+
+    // 4. The Curved Claw Grabber
+    new Zdog.Shape({
+      addTo: armAnchor,
+      path: [
+        { y: 15, z: 80 }, // Start at knuckle
+        { bezier: [
+          { y: 60, z: 110 }, // Control point 1 (bows outward)
+          { y: 130, z: 90 }, // Control point 2 (curves down)
+          { y: 160, z: 10 }  // Tip of the claw (curves inward)
+        ]}
+      ],
+      closed: false,
+      stroke: 22, // EXTRA THICK
+      color: "#e42100",
+    });
+    
+    // 5. Claw Tip (Slight taper/point)
+    new Zdog.Cone({
+      addTo: armAnchor,
+      diameter: 22,
+      length: 25,
+      stroke: false,
+      color: "#fcd2df",
+      translate: { y: 160, z: 10 },
+      // Rotate the cone to point inward along the trajectory of the bezier curve
+      rotate: { x: Zdog.TAU / 4.5 } 
+    });
+  }
+
+  // --- ANIMATION LOOP ---
+  function animate() {
+    // Slowly rotate the entire assembly to showcase the rotational symmetry
+    clawAssembly.rotate.y += 0.005;
+    illo.updateRenderGraph();
+    requestAnimationFrame(animate);
+  }
+
+  animate();
+</script>
+</body>
+</html>
