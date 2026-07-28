@@ -6,7 +6,7 @@
   <meta http-equiv="Expires" content="0">
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>士多啤梨熊數綫尋寶 - 2.5D 叢林背景</title>
+  <title>士多啤梨熊數線尋寶 - 2.5D 叢林背景</title>
   <link rel="stylesheet" href="./game_style.css" />
   <!-- 使用 Tailwind CDN 以支援原本的樣式類別 -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -44,7 +44,49 @@
   <div id="yellowBubbleText" aria-live="polite" aria-atomic="true"></div> -->
   
 
-  <!-- Top-left slide-out menu arrow -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Top-left slide-out menu arrow -->
   <button
     id="menuArrow"
     class="menu-arrow strawberry-box"
@@ -58,34 +100,27 @@
       🏠 返回菜單
     </span>
   </button>
+
+  <!-- Fixed orange circular home button -->
+  <button
+    id="homeCircleButton"
+    class="home-circle-button"
+    onclick="returnToMenu()"
+    type="button"
+  >
+    🏠
+  </button>
+
     <div id="gameShell" class="game-shell max-w-3xl mx-auto">
         <!-- 頂部標題列 -->
     <header class="game-header">
-      <h1
-        id="gameTitle"
-        class="text-2xl md:text-4xl font-bold text-center text-amber-600 drop-shadow-sm"
-      >
-        🍓 士多啤梨熊數綫尋寶 🍓
-      </h1>
-      <span
-        class="mx-4 text-2xl md:text-4xl font-bold text-amber-600 drop-shadow-sm"
-      >
-        |
-      </span>
-            <span
-        id="rangeInfo"
-        class="text-xl md:text-2xl font-bold text-amber-600 drop-shadow-sm"
-      ></span>
-      <span
-        class="mx-4 text-2xl md:text-4xl font-bold text-amber-600 drop-shadow-sm"
-      >
-        |
-      </span>
-            <span
-        id="precisionInfo"
-        class="text-xl md:text-2xl font-bold text-amber-600 drop-shadow-sm"
-      ></span>
+      <img
+        id="gameHeaderImage"
+        src="./orange_game_title.png"
+        alt="士多啤梨熊數線尋寶遊戲標題"
+      />
     </header>
+
 
     <!-- 主菜單容器：新版流程中不顯示任何內容，僅作結構及後備使用 -->
     <div id="mainMenu" class="hidden"></div>
@@ -97,7 +132,7 @@
 
       <div
         id="result"
-        class="text-xl md:text-3xl font-bold text-center mb-6"
+        class="text-xl md:text-3xl custom-font-bold text-center mb-6"
       ></div>
 
 
@@ -117,7 +152,7 @@
             <div class="text-2xl" id="treasureContent">🎁</div>
           </div>
         </div>
-        <p id="outfitName" class="text-lg font-bold text-amber-700 mt-3"></p>
+        <p id="outfitName" class="text-lg custom-font-bold text-amber-700 mt-3"></p>
       </div>
 
       <div
@@ -137,12 +172,12 @@
   <!-- 勝利模態 -->
   <div id="victoryModal" class="modal-overlay hidden">
     <div class="modal-content">
-      <p class="text-4xl md:text-5xl font-bold text-green-600 mb-6">
+      <p class="text-4xl md:text-5xl custom-font-bold text-green-600 mb-6">
         🎉 做得好！
       </p>
       <button
         onclick="closeVictoryModal()"
-        class="px-6 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-full text-xl"
+        class="px-6 py-3 bg-green-500 hover:bg-green-600 text-white custom-font-bold rounded-full text-xl"
       >
         繼續玩 🎮
       </button>

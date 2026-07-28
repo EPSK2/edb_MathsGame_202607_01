@@ -1,15 +1,15 @@
-// Cookie and run-state management for the 3-level claw gift game
+// Cookie and run-state management for the multi-level claw gift game (5 levels per run)
 // This module tracks per-range/per-tolerance attempts and timing, and
 // exposes a small API via window.gameCookie.
 
 (function () {
-  const LEVELS_PER_RUN = 3;
+  const LEVELS_PER_RUN = 5;
   const ATTEMPT_COOKIE_NAME = "pb_estimate_attempt";
 
   // Internal run state for the current range/tolerance combination.
   // totalDropAttempts is the key metric we care about.
   let runState = {
-    modeKey: null, // e.g. "1to20_tol1"
+    modeKey: null, // e.g. "0to10_tol1" or "11to20_tol1"
     attemptId: null,
     currentLevelIndex: 1,
     levelsCompleted: 0,
@@ -19,11 +19,12 @@
     status: "idle", // "running" | "paused" | "complete"
   };
 
-  function buildModeKey(rangeMax, clampTolerance) {
-    const max = typeof rangeMax === "number" && rangeMax > 0 ? rangeMax : 10;
+  function buildModeKey(rangeMin, rangeMax, clampTolerance) {
+    const min = typeof rangeMin === "number" && rangeMin >= 0 ? rangeMin : 0;
+    const max = typeof rangeMax === "number" && rangeMax > min ? rangeMax : 20;
     const tol = typeof clampTolerance === "number" && clampTolerance > 0 ? clampTolerance : 1;
-    // Example: 1to20_tol1
-    return `1to${max}_tol${tol}`;
+    // Examples: 0to10_tol1, 11to20_tol1, 0to20_tol1
+    return `${min}to${max}_tol${tol}`;
   }
 
   function generateAttemptId() {
@@ -87,8 +88,8 @@
     }
   }
 
-  function initRunState(rangeMax, clampTolerance) {
-    const modeKey = buildModeKey(rangeMax, clampTolerance);
+  function initRunState(rangeMax, clampTolerance, rangeMin) {
+    const modeKey = buildModeKey(rangeMin, rangeMax, clampTolerance);
     runState.modeKey = modeKey;
 
     const cookieData = getAttemptCookie();
@@ -186,8 +187,8 @@
     }
   }
 
-  function resetRunStateForNewAttempt(rangeMax, clampTolerance) {
-    runState.modeKey = buildModeKey(rangeMax, clampTolerance);
+  function resetRunStateForNewAttempt(rangeMax, clampTolerance, rangeMin) {
+    runState.modeKey = buildModeKey(rangeMin, rangeMax, clampTolerance);
     runState.attemptId = generateAttemptId();
     runState.currentLevelIndex = 1;
     runState.levelsCompleted = 0;

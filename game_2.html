@@ -6,7 +6,7 @@
   <meta http-equiv="Expires" content="0">
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>士多啤梨熊數綫尋寶 - 2.5D 叢林背景</title>
+    <title>士多啤梨熊數線尋寶 - 2.5D 叢林背景</title>
   <link rel="stylesheet" href="./game_style_2.css" />
   <link rel="stylesheet" href="./prep_style.css" />
   <!-- 使用 Tailwind CDN 以支援原本的樣式類別 -->
@@ -28,15 +28,13 @@
 
 
 
-  <!--
+    <!--
   <audio id="sfxPlaceCorrect" src="" preload="auto" style="display: none;"></audio>
   <audio id="sfxPlaceWrong" src="" preload="auto" style="display: none;"></audio>
   <audio id="sfxCorrectHappy" src="" preload="auto" style="display: none;"></audio>
   <audio id="sfxMiddleLevelSuccess" src="./middle_level_success.mp3" preload="auto" style="display: none;"></audio>
 
 
-  <audio id="voiceRoboticInput" src="./voice_human_input.mp3" preload="auto" style="display: none;"></audio>
-  <audio id="voiceRoboticError" src="./voice_human_overflow.mp3" preload="auto" style="display: none;"></audio>
   <audio id="voiceHumanFail" src="./voice_human_fail.mp3" preload="auto" style="display: none;"></audio>
   <audio id="voiceHumanHopefulFail" src="./voice_human_hopeful_fail.mp3" preload="auto" style="display: none;"></audio>
   <audio id="clawAttemptFail" src="./claw_attempt_fail.mp3" preload="auto" style="display: none;"></audio>
@@ -50,6 +48,7 @@
   <audio id="voiceVictorySuccess03" src="./voice_human_success_03.mp3" preload="auto" style="display: none;"></audio>
   <audio id="voiceVictorySuccess04" src="./voice_human_success_04.mp3" preload="auto" style="display: none;"></audio>
   <audio id="voiceVictorySuccess05" src="./voice_human_success_05.mp3" preload="auto" style="display: none;"></audio> -->
+
 
 
     <!-- Helper Bear Image -->
@@ -182,44 +181,61 @@
     </div>
   </div>
 
-    <!-- Top-left slide-out menu arrow -->
+        <!-- Top-left circular return button (matching menu_2.html style) -->
   <button
     id="menuArrow"
-    class="menu-arrow pineapple-box"
+    class="home-button"
     onclick="returnToMenu()"
     type="button"
+    style="
+      position:fixed;
+      left:10px;
+      top:10px;
+      height:15vh;
+      width:15vh;
+      border-radius:50%;
+      background-color:orange;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:6vh;
+      line-height:1;
+    "
   >
-    <span class="menu-arrow-label">
-      <span style="font-size:2em">🏠</span> 返回菜單
-    </span>
+    <img
+      src="./exit_door.png"
+      alt="返回菜單"
+      style="height:1em; width:auto;"
+    />
   </button>
+
     <div id="gameShell" class="game-shell max-w-3xl mx-auto">
         <!-- 頂部標題列 -->
     <header class="game-header">
       <h1
         id="gameTitle"
-        class="text-2xl md:text-4xl font-bold text-center text-amber-600 drop-shadow-sm"
+        class="text-2xl md:text-4xl custom-font-bold text-center text-amber-600 drop-shadow-sm"
       >
-        🍓 士多啤梨熊數綫尋寶 🍓
+        🍓 士多啤梨熊數線尋寶 🍓
       </h1>
       <span
-        class="mx-4 text-2xl md:text-4xl font-bold text-amber-600 drop-shadow-sm"
+        class="mx-4 text-2xl md:text-4xl custom-font-bold text-amber-600 drop-shadow-sm"
       >
         |
       </span>
             <span
         id="rangeInfo"
-        class="text-xl md:text-2xl font-bold text-amber-600 drop-shadow-sm"
+        class="text-xl md:text-2xl custom-font-bold text-amber-600 drop-shadow-sm"
       ></span>
       <span style="display: none;">
       <span
-        class="mx-4 text-2xl md:text-4xl font-bold text-amber-600 drop-shadow-sm"
+        class="mx-4 text-2xl md:text-4xl custom-font-bold text-amber-600 drop-shadow-sm"
       >
         |
       </span>
             <span
         id="precisionInfo"
-        class="text-xl md:text-2xl font-bold text-amber-600 drop-shadow-sm"
+        class="text-xl md:text-2xl custom-font-bold text-amber-600 drop-shadow-sm"
       ></span>
       </span>
     </header>
@@ -234,7 +250,7 @@
 
       <div
         id="result"
-        class="text-xl md:text-3xl font-bold text-center mb-6"
+        class="text-xl md:text-3xl custom-font-bold text-center mb-6"
       ></div>
 
 
@@ -254,7 +270,7 @@
             <div class="text-2xl" id="treasureContent">🎁</div>
           </div>
         </div>
-        <p id="outfitName" class="text-lg font-bold text-amber-700 mt-3"></p>
+        <p id="outfitName" class="text-lg custom-font-bold text-amber-700 mt-3"></p>
       </div>
 
       <div
@@ -273,10 +289,16 @@
 
   </div>
 
-    <!-- 勝利模態 -->
+        <!-- 勝利模態 -->
   <div id="victoryModal" class="modal-overlay hidden">
     <div class="modal-content">
-      <p id="victoryMessage" class="victory-message mb-8"></p>
+      <div id="victoryTextBlock">
+        <p id="victoryMessage" class="victory-message mb-8"></p>
+        <p id="victoryHeadline" class="victory-message mb-2 hidden"></p>
+        <p id="victorySubheadline" class="victory-message mb-4 hidden"></p>
+        <div id="victoryStarsContainer" class="victory-stars hidden"></div>
+        <p id="victoryExtraText" class="victory-extra-text hidden"></p>
+      </div>
       <div id="victoryButtons" class="victory-buttons">
         <button
           id="victoryPrimaryButton"
@@ -291,6 +313,7 @@
       </div>
     </div>
   </div>
+
 
   <div
     id="bottomModeArrowStrip"
@@ -389,15 +412,12 @@
     const AudioContext = window.AudioContext || window.webkitAudioContext;
 
     // If Web Audio is not supported, expose no‑op functions so game_script_2.js doesn’t break
-    if (!AudioContext) {
+        if (!AudioContext) {
       const noop = function () {};
       window.playPlaceCorrectSfx = noop;
       window.playPlaceWrongSfx = noop;
       window.playCorrectHappySfx = noop;
       window.playMiddleLevelSuccessSfx = noop;
-      window.playVoiceRoboticInput = noop;
-      window.playVoiceRoboticError = noop;
-      window.playVoiceRoboticFail = noop;
       window.playClawAttemptFail = noop;
       window.playClawAttemptSuccess = noop;
       window.playTotalVictory = noop;
@@ -405,44 +425,58 @@
       window.playPanelButtonClick = noop;
       window.playVictorySuccessVoice = noop;
       window.stopVictorySuccessVoice = noop;
+      window.playHintVoiceRound1 = noop;
+      window.playHintVoiceRound2 = noop;
       console.warn('Web Audio API not supported; audio disabled.');
       return;
     }
 
-        const audioContext = new AudioContext();
+
+
+    const audioContext = new AudioContext();
     const buffers = {};
     const loadingPromises = {};
-
+    const currentDir = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/');
     // Map logical IDs to audio files (only ones that had non‑empty src)
-    const audioFiles = {
+        const audioFiles = {
       // These three had empty src in your HTML; leave them unmapped (no sound)
       sfxPlaceCorrect: null,
       sfxPlaceWrong: null,
       sfxCorrectHappy: null,
-
-      sfxMiddleLevelSuccess: './middle_level_success.mp3',
-      voiceRoboticInput: './voice_human_input.mp3',
-      voiceRoboticError: './voice_human_overflow.mp3',
-      voiceHumanFail: './voice_human_fail.mp3',
-      voiceHumanHopefulFail: './voice_human_hopeful_fail.mp3',
-      clawAttemptFail: './claw_attempt_fail.mp3',
-      clawAttemptSuccess: './claw_attempt_success.mp3',
-      totalVictory: './total_victory.mp3',
-      runningGear: './running_gear.mp3',
-      panelButton: './panel_button.mp3',
-      voiceVictorySuccess01: './voice_human_success_01.mp3',
-      voiceVictorySuccess02: './voice_human_success_02.mp3',
-      voiceVictorySuccess03: './voice_human_success_03.mp3',
-      voiceVictorySuccess04: './voice_human_success_04.mp3',
-      voiceVictorySuccess05: './voice_human_success_05.mp3'
+      sfxMiddleLevelSuccess: 'middle_level_success.mp3',
+      voiceHumanFail: 'voice_human_fail.mp3',
+      voiceHumanHopefulFail: 'voice_human_hopeful_fail.mp3',
+      clawAttemptFail: 'claw_attempt_fail.mp3',
+      clawAttemptSuccess: 'claw_attempt_success.mp3',
+      totalVictory: 'total_victory.mp3',
+            runningGear: 'running_gear.mp3',
+      panelButton: 'panel_button.mp3',
+      voiceVictorySuccess01: 'voice_human_success_01.mp3',
+      voiceVictorySuccess02: 'voice_human_success_02.mp3',
+      voiceVictorySuccess03: 'voice_human_success_03.mp3',
+      voiceVictorySuccess04: 'voice_human_success_04.mp3',
+            voiceVictorySuccess05: 'voice_human_success_05.mp3',
+      voiceHumanHint: 'voice_human_hint.mp3',
+      voiceHumanHint2: 'voice_human_hint_2.mp3',
+      voiceMoreStar: 'voice_human_morestar.mp3'
     };
+
+
+
 
     // Shared URL sanitiser for audio file requests.
     // Strips control characters (including null bytes) and validates
     // protocol before passing URLs into fetch/decodeAudioData.
     const CONTROL_CHARS_REGEX = /[\u0000-\u001F\u007F]/g;
 
-    function sanitizeMediaUrl(raw) {
+        function sanitizeMediaUrl(raw) {
+      // Prefer the shared global sanitiser from game_script_2.js when available
+      // so behaviour is consistent for both <audio>/<video> elements and
+      // Web Audio fetch() requests.
+      if (typeof window.sanitizeMediaUrl === 'function') {
+        return window.sanitizeMediaUrl(raw);
+      }
+
       if (typeof raw !== 'string') {
         console.warn('[Audio] non-string URL', raw);
         return null;
@@ -456,7 +490,13 @@
 
       let urlObj;
       try {
-        urlObj = new URL(cleaned, window.location.origin);
+        // Resolve relative paths against the current page directory so
+        // "voice_human_fail.mp3" works both from file:// and http(s) origins.
+        const baseDir = window.location.href.substring(
+          0,
+          window.location.href.lastIndexOf('/') + 1
+        );
+        urlObj = new URL(cleaned, baseDir);
       } catch (e) {
         console.warn('[Audio] invalid URL format', { cleaned, error: e });
         return null;
@@ -466,6 +506,7 @@
       if (
         protocol !== 'http:' &&
         protocol !== 'https:' &&
+        protocol !== 'file:' &&
         protocol !== 'blob:' &&
         protocol !== 'data:'
       ) {
@@ -475,6 +516,7 @@
 
       return urlObj.toString();
     }
+
 
     // Also expose a global sanitiser for other scripts (e.g. menu_2.html).
     if (!window.sanitizeMediaUrl) {
@@ -556,7 +598,7 @@
 
 
 
-        function playBuffer(id, options) {
+                function playBuffer(id, options) {
       options = options || {};
       loadBuffer(id)
         .then(function (buffer) {
@@ -595,6 +637,64 @@
         });
     }
 
+        // Single-source guard for input / error / fail voices so they
+    // never talk over each other. Any new playback in this group stops the
+    // previous one first.
+    var currentInputErrorSource = null;
+
+    function playExclusiveInputErrorVoice(id, options) {
+      options = options || {};
+
+      // Stop any previous voice in this group before starting a new one.
+      if (currentInputErrorSource) {
+        try {
+          currentInputErrorSource.stop();
+        } catch (e) {}
+        currentInputErrorSource = null;
+      }
+
+      loadBuffer(id)
+        .then(function (buffer) {
+          if (!buffer) {
+            return null;
+          }
+
+          var source = audioContext.createBufferSource();
+          source.buffer = buffer;
+          source.connect(audioContext.destination);
+
+          var offset = options.offset || 0;
+          var duration = options.duration;
+
+          try {
+            if (typeof duration === 'number') {
+              source.start(0, offset, duration);
+            } else {
+              source.start(0, offset);
+            }
+          } catch (e) {
+            console.error('[Audio] bufferSource.start() failed for', id, e);
+            return null;
+          }
+
+          currentInputErrorSource = source;
+          source.onended = function () {
+            if (currentInputErrorSource === source) {
+              currentInputErrorSource = null;
+            }
+            if (typeof options.onended === 'function') {
+              options.onended();
+            }
+          };
+
+          return source;
+        })
+        .catch(function (err) {
+          console.error('[Audio] exclusive playBuffer error for', id, err);
+        });
+    }
+
+
 
     // Preload all configured audio buffers to minimise latency
     Object.keys(audioFiles).forEach(function (id) {
@@ -602,6 +702,7 @@
         loadBuffer(id).catch(function () {});
       }
     });
+
 
     // === Public API (same function names as before) ===
 
@@ -617,26 +718,28 @@
       playBuffer('sfxCorrectHappy');
     };
 
-    window.playMiddleLevelSuccessSfx = function () {
-      playBuffer('sfxMiddleLevelSuccess');
-    };
+        window.playMiddleLevelSuccessSfx = function () {
+          playBuffer('sfxMiddleLevelSuccess');
+        };
 
-    window.playVoiceRoboticInput = function () {
-      playBuffer('voiceRoboticInput');
-    };
+        // Use human fail / hopeful-fail voices for input errors.
+        window.playHumanInputError = function (diff) {
+          var abs = typeof diff === 'number' ? Math.abs(diff) : NaN;
+          var id;
+          // Within ±3 on the number line => hopeful error; otherwise regular error.
+          if (!isNaN(abs) && abs <= 3) {
+            id = 'voiceHumanHopefulFail';
+          } else {
+            id = 'voiceHumanFail';
+          }
+          playExclusiveInputErrorVoice(id);
+        };
 
-    window.playVoiceRoboticError = function () {
-      playBuffer('voiceRoboticError');
-    };
-
-    window.playVoiceRoboticFail = function (diff) {
-      var id = Math.abs(diff) > 3 ? 'voiceHumanHopefulFail' : 'voiceHumanFail';
-      playBuffer(id);
-    };
 
     window.playClawAttemptFail = function () {
       playBuffer('clawAttemptFail');
     };
+
 
     window.playClawAttemptSuccess = function () {
       playBuffer('clawAttemptSuccess');
@@ -687,7 +790,7 @@
         .catch(function () {});
     };
 
-    window.stopVictorySuccessVoice = function () {
+        window.stopVictorySuccessVoice = function () {
       activeVictorySources.forEach(function (source) {
         try {
           source.stop();
@@ -695,7 +798,21 @@
       });
       activeVictorySources = [];
     };
+
+        window.playHintVoiceRound1 = function () {
+      playBuffer('voiceHumanHint');
+    };
+
+    window.playHintVoiceRound2 = function () {
+      playBuffer('voiceHumanHint2');
+    };
+
+    window.playMoreStarVoice = function () {
+      playBuffer('voiceMoreStar');
+    };
   })();
+
+
 
 
 

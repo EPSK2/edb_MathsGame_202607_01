@@ -5,7 +5,7 @@ const ctx = canvas ? canvas.getContext("2d") : null;
 
 // Show the preparation/loading overlay while game assets are loading.
 if (typeof window.showPrepOverlay === "function") {
-  window.showPrepOverlay("Strawberry");
+  window.showPrepOverlay("Tangerine");
 }
 
 // Gift box / claw catch shared state
@@ -16,7 +16,12 @@ let pendingCatchGift = false;
 let hasCaughtGift = false;
 let caughtGiftEl = null;
 
+// Track guesses for the current round (used by the SEN smart wrong-option logic).
+// Each entry is { target, guess, isHit } for the active gift.
+let currentRoundGuesses = [];
+
 // Wooden sign video removed
+
 
 // Gift control panel / monitor state
 let giftPanelState = {
@@ -44,32 +49,27 @@ let giftButtonsLocked = false;
 // (e.g. containing %00) and to centralise play() promise handling.
 (function () {
   var CONTROL_CHARS_REGEX = /[\u0000-\u001F\u007F]/g;
-
   function sanitizeMediaUrl(raw) {
-    if (typeof raw !== "string") {
-      console.warn("[media] non-string URL", raw);
-      return null;
-    }
+    if (typeof raw !== "string") return null;
 
-    // Strip control characters (including null bytes) and trim.
     var cleaned = raw.replace(CONTROL_CHARS_REGEX, "").trim();
-    if (!cleaned) {
-      console.warn("[media] cleaned URL is empty", { raw: raw });
-      return null;
-    }
+    if (!cleaned) return null;
 
     var urlObj;
     try {
-      urlObj = new URL(cleaned, window.location.origin);
+      // Resolve relative path against current page location
+      var baseDir = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+      urlObj = new URL(cleaned, baseDir);
     } catch (e) {
-      console.warn("[media] invalid URL format", { cleaned: cleaned, error: e });
       return null;
     }
 
+    // ✅ ADDED "file:" HERE so it works locally on your PC!
     var protocol = urlObj.protocol;
     if (
       protocol !== "http:" &&
       protocol !== "https:" &&
+      protocol !== "file:" &&
       protocol !== "blob:" &&
       protocol !== "data:"
     ) {
@@ -250,7 +250,7 @@ function initClawMachine() {
     // Clamp movement duration so very short moves still feel smooth,
     // and longer moves do not take too long. Speed is in Zdog units / second.
     const minMoveDuration = 0.3;
-    const maxMoveDuration = 4;
+    const maxMoveDuration = 2;
     const maxMoveSpeed = 10;
 
 
@@ -307,7 +307,6 @@ function initClawMachine() {
     moveStartTime = performance.now();
 
     // Compute an ideal duration based on distance and the maximum speed,
-    // then clamp into a friendly 0.3–1.2 second window.
     const idealDuration = distance / maxMoveSpeed;
     moveDuration = Math.min(maxMoveDuration, Math.max(minMoveDuration, idealDuration));
     isMoving = true;
@@ -821,6 +820,12 @@ function initClawMachinePNG() {
   const clawSrcClosed = "./trendy-grab-machine-vector_closed.png";
   const clawSrcOpen = "./trendy-grab-machine-vector_open.png";
 
+    // Track how close the last failed attempt was (for human fail voices).
+  let lastAttemptNearMiss = false;
+  // Store the numeric difference between gift position and claw for the last failed attempt.
+  let lastAttemptDiff = null;
+
+
   // Ensure the clamp image starts in the open state.
   try {
     img.src = clawSrcOpen;
@@ -828,6 +833,7 @@ function initClawMachinePNG() {
 
   // Ensure the clamp swings around the top centre (steel bar).
   img.style.transformOrigin = "50% 0%";
+
 
 
   // Horizontal movement state (pixels relative to viewport centre).
@@ -885,8 +891,8 @@ function initClawMachinePNG() {
   // Clamp movement duration so very short moves still feel smooth,
   // and longer moves do not take too long. Speed is in pixels / second.
   const minMoveDuration = 0.3;
-  const maxMoveDuration = 4;
-  const maxMoveSpeed = 100; // horizontal movement speed (slower than before)
+  const maxMoveDuration = 3;
+  const maxMoveSpeed = 20; // horizontal movement speed (100% faster)
 
 
   let lastAnimTime = null;
@@ -895,10 +901,10 @@ function initClawMachinePNG() {
   let verticalPhase = "idle"; // "idle" | "down" | "hold" | "up"
   let verticalStartTime = 0;
   
-    let verticalMaxOffset = 0; // pixels the claw can travel down from the bar (updated dynamically)
-    const verticalDownDuration = 3.0; // seconds to move fully down
-  const verticalHoldDuration = 2.0; // seconds to stay at bottom
-  const verticalUpDuration = 3.0; // seconds to move back up
+  let verticalMaxOffset = 0; // pixels the claw can travel down from the bar (updated dynamically)
+  const verticalDownDuration = 1.25; // seconds to move fully down (100% faster)
+  const verticalHoldDuration = 1.5; // seconds to stay at bottom
+  const verticalUpDuration = 1.25; // seconds to move back up (100% faster)
   let pendingDropAfterMove = false;
 
 
@@ -1007,7 +1013,7 @@ function initClawMachinePNG() {
 
 
   window.controlClawPosition = controlClawPosition;
-        function startClawDropCycle() {
+                function startClawDropCycle() {
       // Compute a vertical offset that aligns the claw so that its top
       // stops 50px above the gift box's top edge.
       const barEl = document.getElementById("clawBar");
@@ -1021,7 +1027,7 @@ function initClawMachinePNG() {
           const giftTopY = giftRect.top;
           // Clamp maximum downward travel so the claw's top is always
           // 50px above the gift box's top coordinate.
-          verticalMaxOffset = Math.max(0, giftTopY - 50 - barBottomY);
+          verticalMaxOffset = Math.max(0, giftTopY - barBottomY - giftRect.height);
         } else {
           // Fallback: use the original target height when no gift is found.
           const targetGiftY = window.innerHeight * 0.675;
@@ -1042,12 +1048,15 @@ function initClawMachinePNG() {
 
 
       // Determine if the current claw position is close enough to the gift
-      // (within ±clampTolerance on the number line) to allow catching.
-      pendingCatchGift = false;
+      // (within ±clampTolerance on the number line) to allow catching,
+      // and whether a failed attempt should be treated as a "near miss".
+            pendingCatchGift = false;
       hasCaughtGift = false;
       caughtGiftEl = null;
+      lastAttemptNearMiss = false;
+      lastAttemptDiff = null;
 
-      if (
+            if (
         activeGiftBox &&
         typeof activeGiftValue === "number" &&
         typeof clawCurrentValue === "number"
@@ -1059,12 +1068,30 @@ function initClawMachinePNG() {
             : 1;
         const diff = Math.abs(activeGiftValue - clawCurrentValue);
         if (diff <= tolerance) {
+          // Will be a success if the claw catches the gift.
           pendingCatchGift = true;
+          lastAttemptNearMiss = false;
+          lastAttemptDiff = null;
+        } else {
+          // Missed; store difference and mark as "near miss" if within ±3 on the number line.
+          pendingCatchGift = false;
+          lastAttemptDiff = diff;
+          lastAttemptNearMiss = diff <= 3;
         }
+
+        // Record this attempt for the SEN estimation profile (local + historical).
+        const { rangeMin, rangeMax } = getCurrentRangeAndTolerance();
+        saveAttemptToHistory(activeGiftValue, clawCurrentValue, rangeMin, rangeMax);
+      } else {
+        lastAttemptNearMiss = false;
+        lastAttemptDiff = null;
       }
+
+
 
             verticalPhase = "down";
       verticalStartTime = performance.now();
+
 
       // Play running gear sound for the downward motion (final 3 seconds of the clip).
       if (typeof window.playRunningGearSegment === "function") {
@@ -1095,18 +1122,23 @@ function initClawMachinePNG() {
 
   window.debugClawDown = debugClawDown;
 
-  function handleRoundOutcome() {
+    function handleRoundOutcome() {
       if (hasCaughtGift && caughtGiftEl) {
+        // Correct estimation / successful catch: clear current round log so
+        // future MC questions only analyse fresh misses.
+        resetCurrentRoundGuesses();
+
         if (typeof showGiftSuccessMessage === "function") {
           showGiftSuccessMessage();
         }
+
 
         // Use the cookie/run-state module to advance multi-level progress
         // and decide whether this is a middle-level success or the final
         // overall victory.
         let isFinalLevel = false;
         let completedLevelIndex = 1;
-        let totalLevels = 3;
+        let totalLevels = 5;
         let totalAttempts = null;
 
         if (window.gameCookie) {
@@ -1121,7 +1153,7 @@ function initClawMachinePNG() {
             completedLevelIndex = typeof state.levelsCompleted === "number" && state.levelsCompleted > 0
               ? state.levelsCompleted
               : (typeof state.currentLevelIndex === "number" ? state.currentLevelIndex : 1);
-            totalLevels = typeof api.LEVELS_PER_RUN === "number" ? api.LEVELS_PER_RUN : 3;
+            totalLevels = typeof api.LEVELS_PER_RUN === "number" ? api.LEVELS_PER_RUN : 5;
             isFinalLevel = state.status === "complete" || completedLevelIndex >= totalLevels;
           }
 
@@ -1152,7 +1184,9 @@ function initClawMachinePNG() {
         if (typeof showGiftErrorMessage === "function") {
           showGiftErrorMessage();
         }
+        handleWrongAttemptForHints();
       }
+
     }
 
 
@@ -1253,7 +1287,7 @@ function initClawMachinePNG() {
 
         }
       }
-                } else if (verticalPhase === "hold") {
+                                } else if (verticalPhase === "hold") {
       const elapsedHold = (now - verticalStartTime) / 1000;
       currentOffsetY = verticalMaxOffset;
       if (elapsedHold >= verticalHoldDuration) {
@@ -1267,14 +1301,20 @@ function initClawMachinePNG() {
 
         if (typeof window.playClawAttemptSuccess === "function" && hasCaughtGift) {
           window.playClawAttemptSuccess();
-        } else if (typeof window.playClawAttemptFail === "function" && !hasCaughtGift) {
-          window.playClawAttemptFail();
+                } else if (!hasCaughtGift) {
+          // Failed attempt: play mechanical fail, then human fail voice
+          // chosen based on how close the guess was (±3 => hopeful fail).
+          if (typeof window.playClawAttemptFail === "function") {
+            window.playClawAttemptFail();
+          }
           if (typeof window.playVoiceRoboticFail === "function") {
-            window.playVoiceRoboticFail();
+            window.playVoiceRoboticFail(lastAttemptDiff);
           }
         }
 
+
       }
+
 
         } else if (verticalPhase === "up") {
 
@@ -2457,13 +2497,24 @@ let gameState = {
   numbers: [],
   mode: "ascending",
   difficulty: "easy",
-  maxNumber: 10,
+  // Logical playable range for gifts/inputs
+  rangeMin: 0,
+  rangeMax: 20,
+  // Legacy field kept for compatibility; usually equals rangeMax
+  maxNumber: 20,
   clampTolerance: 1,
+  // Hint-related state
+  wrongAttemptsForHints: 0,
+  shownHints: {},
+  hintRound1Played: false,
+  hintRound2Played: false,
   selectedNumbers: [],
   nextIndex: 0,
   draggedValue: null,
   draggedElement: null,
 };
+
+
 
 function validatePlacement(index, numberValue) {
   let sorted = [...gameState.numbers];
@@ -2634,6 +2685,11 @@ const orderInfo = document.getElementById("orderInfo");
 const difficultyInfo = document.getElementById("difficultyInfo");
 const rangeInfo = document.getElementById("rangeInfo");
 const precisionInfo = document.getElementById("precisionInfo");
+const victoryHeadline = document.getElementById("victoryHeadline");
+const victorySubheadline = document.getElementById("victorySubheadline");
+const victoryStarsContainer = document.getElementById("victoryStarsContainer");
+const victoryExtraText = document.getElementById("victoryExtraText");
+
 
 // Gift control panel DOM references (assigned lazily in initGiftControlPanel)
 // These are kept as vars so the panel can be reconfigured if needed.
@@ -2716,9 +2772,12 @@ function createConfetti() {
 }
 
 function getGiftPanelMaxValue() {
-  const scale = getNumberLineScaleFromGameState();
-  return scale && scale > 0 ? scale : 10;
+  const max = typeof gameState.rangeMax === "number" && gameState.rangeMax > 0
+    ? gameState.rangeMax
+    : 20;
+  return max;
 }
+
 
 function stopAllGame2Audio() {
   // Prefer project-level audio stop hooks when available.
@@ -3105,6 +3164,52 @@ function runGiftKeySequenceAnimation() {
   });
 }
 
+function playGiftPromptVoice() {
+  // If the fairy has just appeared for this round, skip all human input/hint
+  // voices once; the fairy audio will guide the child instead.
+  if (skipHintVoiceThisRound) {
+    skipHintVoiceThisRound = false;
+    return;
+  }
+
+  // Count how many numeric hint labels are currently visible on the number line.
+  const hintCount =
+    gameState.shownHints && typeof gameState.shownHints === "object"
+      ? Object.keys(gameState.shownHints).length
+      : 0;
+
+  if (hintCount > 0) {
+    // First human hint voice: only play once per round when at least one
+    // hint label exists.
+    if (!gameState.hintRound1Played && typeof window.playHintVoiceRound1 === "function") {
+      window.playHintVoiceRound1();
+      gameState.hintRound1Played = true;
+      return;
+    }
+
+    // Second human hint voice: only available when more than one hint label
+    // exists (Level 3) so that Level 1/2 never jump straight to hint 2.
+    if (
+      hintCount > 1 &&
+      !gameState.hintRound2Played &&
+      typeof window.playHintVoiceRound2 === "function"
+    ) {
+      window.playHintVoiceRound2();
+      gameState.hintRound2Played = true;
+      return;
+    }
+  }
+
+    // Fallback: no applicable human hint voice; currently no extra
+  // input guidance is played here.
+}
+
+
+
+
+
+
+
 function showGiftInputPromptForGift() {
   if (!giftControlPanel || !giftMonitor || !giftMonitorMessage || !giftMonitorInput) {
     return;
@@ -3124,18 +3229,18 @@ function showGiftInputPromptForGift() {
   giftMonitor.classList.remove("has-input");
     setGiftKeyboardEnabled(true, false);
   setGiftPanelButtonsLocked(false);
-  // Prompt phase indicator: user has not typed anything yet.
+    // Prompt phase indicator: user has not typed anything yet.
   setGiftMonitorMessage("•ᴗ•", "normal");
 
-  if (typeof window.playVoiceRoboticInput === "function") {
-    window.playVoiceRoboticInput();
-  }
+  playGiftPromptVoice();
+
   runGiftKeySequenceAnimation();
 
   // Once the panel is visible and laid out, update the triangle so
   // its vertical edge sticks to the panel's right wall.
   updateGiftPanelTriangle();
 }
+
 
 
 
@@ -3156,14 +3261,16 @@ function handleGiftDigitClick(digit) {
   const max = getGiftPanelMaxValue();
   const parsed = parseInt(nextRaw, 10);
 
-  // Overflow / out-of-range error indicator: show ＞ᨓ＜, then
-  // restore the stored number (or prompt face) after the error audio.
-  if (!Number.isFinite(parsed) || parsed < 0 || parsed > max) {
-    clearGiftInputRestoreTimer();
-    setGiftMonitorMessage("＞ᨓ＜", "error");
-    if (typeof window.playVoiceRoboticError === "function") {
-      window.playVoiceRoboticError();
-    }
+    // Overflow / out-of-range error indicator: show ＞ᨓ＜, then
+    // restore the stored number (or prompt face) after the error audio.
+    // The overflow detection algorithm itself is unchanged.
+    if (!Number.isFinite(parsed) || parsed < 0 || parsed > max) {
+      clearGiftInputRestoreTimer();
+      setGiftMonitorMessage("＞ᨓ＜", "error");
+
+      // Range-specific human overflow guidance.
+      playHumanOverflowVoiceForCurrentRange();
+
 
     giftInputRestoreTimer = window.setTimeout(() => {
       giftInputRestoreTimer = null;
@@ -3180,6 +3287,7 @@ function handleGiftDigitClick(digit) {
     }, 2400);
     return;
   }
+
 
   const next = String(parsed);
 
@@ -3237,15 +3345,22 @@ function handleGiftResetClick() {
     giftZeroButton.disabled = false;
   }
 
-        clearGiftKeySequenceTimers();
+  clearGiftKeySequenceTimers();
   setGiftKeyLabelsHidden(false);
   setGiftKeyboardEnabled(true, false);
   // Back to prompt phase: no digits typed yet.
   setGiftMonitorMessage("•ᴗ•", "normal");
+
+  // When the child manually presses the retry button during a turn
+  // where hints may already be visible, always play the normal
+  // input guidance track instead of progressing to a later hint
+  // voice.
   if (typeof window.playVoiceRoboticInput === "function") {
     window.playVoiceRoboticInput();
   }
 }
+
+
 
 
 
@@ -3271,15 +3386,17 @@ function handleGiftMoveClick() {
   const max = getGiftPanelMaxValue();
   const value = parseInt(giftPanelState.inputValue, 10);
 
-  // Invalid value error: show ＞ᨓ＜, then restore the stored number
-  // (or prompt face) after the error audio.
-  if (!Number.isFinite(value) || value < 0 || value > max) {
-    const stored = giftPanelState.inputValue || "";
-    clearGiftInputRestoreTimer();
-    setGiftMonitorMessage("＞ᨓ＜", "error");
-    if (typeof window.playVoiceRoboticError === "function") {
-      window.playVoiceRoboticError();
-    }
+    // Invalid value error: show ＞ᨓ＜, then restore the stored number
+    // (or prompt face) after the error audio. The overflow algorithm
+    // remains unchanged; this branch simply adds voice feedback.
+    if (!Number.isFinite(value) || value < 0 || value > max) {
+      const stored = giftPanelState.inputValue || "";
+      clearGiftInputRestoreTimer();
+      setGiftMonitorMessage("＞ᨓ＜", "error");
+
+      // Range-specific human overflow guidance.
+      playHumanOverflowVoiceForCurrentRange();
+
 
     giftInputRestoreTimer = window.setTimeout(() => {
       giftInputRestoreTimer = null;
@@ -3296,6 +3413,7 @@ function handleGiftMoveClick() {
     }, 2400);
     return;
   }
+
 
     // Mark the panel as moving before starting the claw motion so that
   // debugClawDown can correctly flag a pending round outcome.
@@ -3361,39 +3479,26 @@ function showGiftErrorMessage() {
     setGiftPanelButtonsLocked(false);
     // Back to prompt phase indicator after an error.
     setGiftMonitorMessage("•ᴗ•", "normal");
-    if (typeof window.playVoiceRoboticInput === "function") {
-      window.playVoiceRoboticInput();
-    }
+                                playGiftPromptVoice();
     runGiftKeySequenceAnimation();
 
   }
 
-  // Prefer to wait until the fail voice clip has finished before
+    // Prefer to wait until the fail voice clip has finished before
   // restoring the prompt; fall back to a timeout if the audio is
   // unavailable or cannot play.
   let restored = false;
   function restoreOnce() {
     if (restored) return;
     restored = true;
-
-    const failEl = document.getElementById("voiceRoboticFail");
-    if (failEl) {
-      failEl.removeEventListener("ended", restoreOnce);
-    }
-
     restorePromptFromError();
   }
 
-  const failEl = document.getElementById("voiceRoboticFail");
-  if (failEl) {
-    failEl.addEventListener("ended", restoreOnce);
-    // Safety net: if the audio never fires "ended", restore after ~3s.
-    window.setTimeout(restoreOnce, 3000);
-  } else {
-    // No fail audio element: keep the previous fixed-delay behaviour.
-    window.setTimeout(restoreOnce, 2400);
-  }
+  // No dedicated fail element is used here; keep the previous
+  // fixed-delay behaviour.
+  window.setTimeout(restoreOnce, 2400);
 }
+
 
 
 
@@ -3452,16 +3557,26 @@ function startGame(difficulty) {
 
 // Read URL parameters from game.html and initialise game state + header bar.
 function initGameConfigFromUrl() {
-  const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(window.location.search);
+  const rangeMinParam = params.get("rangeMin");
   const rangeMaxParam = params.get("rangeMax");
   const clampTolParam = params.get("clampTolerance");
+
+  if (rangeMinParam) {
+    const parsedMin = parseInt(rangeMinParam, 10);
+    if (!Number.isNaN(parsedMin) && parsedMin >= 0) {
+      gameState.rangeMin = parsedMin;
+    }
+  }
 
   if (rangeMaxParam) {
     const parsedMax = parseInt(rangeMaxParam, 10);
     if (!Number.isNaN(parsedMax) && parsedMax > 0) {
+      gameState.rangeMax = parsedMax;
       gameState.maxNumber = parsedMax;
     }
   }
+
 
   if (clampTolParam) {
     const parsedTol = parseInt(clampTolParam, 10);
@@ -3470,11 +3585,13 @@ function initGameConfigFromUrl() {
     }
   }
 
-  // Header bar: show a friendly summary of range and clamp settings, with emojis.
+    // Header bar: show a friendly summary of range and clamp settings, with emojis.
   if (rangeInfo) {
-    const maxNumber = typeof gameState.maxNumber === "number" && gameState.maxNumber > 0 ? gameState.maxNumber : 10;
-    rangeInfo.innerHTML = `🔢 範圍：0 至 ${maxNumber}`;
+    const minNumber = typeof gameState.rangeMin === "number" ? gameState.rangeMin : 0;
+    const maxNumber = typeof gameState.rangeMax === "number" && gameState.rangeMax > 0 ? gameState.rangeMax : 20;
+    rangeInfo.innerHTML = `🔢 範圍：${minNumber} 至 ${maxNumber}`;
   }
+
 
   if (precisionInfo) {
     const clampTolerance = typeof gameState.clampTolerance === "number" && gameState.clampTolerance > 0 ? gameState.clampTolerance : 1;
@@ -3482,22 +3599,698 @@ function initGameConfigFromUrl() {
   }
 }
 
-// Decide the number line scale (10 or 20) from game state / URL config.
+// Decide the number line scale for rendering.
+// The visual number line is always 0–20, regardless of the playable range.
 function getNumberLineScaleFromGameState() {
-  const max = typeof gameState.maxNumber === "number" ? gameState.maxNumber : null;
-  if (max && max > 0) {
-    return max;
+  return 20;
+}
+
+// Map current playable range to a logical hint level (1/2/3).
+function getHintLevelFromRange() {
+  const min = typeof gameState.rangeMin === "number" ? gameState.rangeMin : 0;
+  const max = typeof gameState.rangeMax === "number" ? gameState.rangeMax : 20;
+  if (min === 0 && max === 10) return 1;
+  if (min === 11 && max === 20) return 2;
+  if (min === 0 && max === 20) return 3;
+  return null;
+}
+
+function ensureHintLabelsGroup() {
+  const svg = document.getElementById("numberLineSVG");
+  if (!svg) return null;
+  let group = document.getElementById("labelsGroupHints");
+  if (!group) {
+    // Ensure a glow filter for hint labels exists.
+    let defs = svg.querySelector("defs");
+    if (!defs) {
+      defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+      svg.insertBefore(defs, svg.firstChild);
+    }
+    let glow = svg.querySelector("#hintGlowFilter");
+    if (!glow) {
+      glow = document.createElementNS("http://www.w3.org/2000/svg", "filter");
+      glow.id = "hintGlowFilter";
+      glow.setAttribute("x", "-50%");
+      glow.setAttribute("y", "-50%");
+      glow.setAttribute("width", "200%");
+      glow.setAttribute("height", "200%");
+
+      const blur = document.createElementNS("http://www.w3.org/2000/svg", "feGaussianBlur");
+      blur.setAttribute("in", "SourceGraphic");
+      blur.setAttribute("stdDeviation", "24"); // ~8px glow
+      blur.setAttribute("result", "blur");
+
+      const merge = document.createElementNS("http://www.w3.org/2000/svg", "feMerge");
+      const mergeNodeBlur = document.createElementNS("http://www.w3.org/2000/svg", "feMergeNode");
+      mergeNodeBlur.setAttribute("in", "blur");
+      const mergeNodeSource = document.createElementNS("http://www.w3.org/2000/svg", "feMergeNode");
+      mergeNodeSource.setAttribute("in", "SourceGraphic");
+      merge.appendChild(mergeNodeBlur);
+      merge.appendChild(mergeNodeSource);
+
+      glow.appendChild(blur);
+      glow.appendChild(merge);
+      defs.appendChild(glow);
+    }
+
+    group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    group.id = "labelsGroupHints";
+    // Apply glow filter to entire hint group
+    group.setAttribute("filter", "url(#hintGlowFilter)");
+    svg.appendChild(group);
+  }
+  return group;
+}
+
+// Fade in an orange hint label at the given numeric value on the 0–20 number line.
+function showHintLabelAt(value) {
+  const group = ensureHintLabelsGroup();
+  if (!group) return;
+
+  // Avoid duplicate labels for the same value.
+  if (!gameState.shownHints) {
+    gameState.shownHints = {};
+  }
+  if (gameState.shownHints[value]) {
+    return;
   }
 
-  const difficulty = gameState.difficulty || "easy";
-  // Default mapping: easy -> 10, others -> 20
-  return difficulty === "easy" ? 10 : 20;
+  const startX = 50;
+  const endX = 4950;
+  const totalWidth = endX - startX;
+  const fixedMax = 20;
+  const yCenter = 80;
+
+  const xPos = startX + (value / fixedMax) * totalWidth;
+  const labelY = yCenter - 200;
+
+  // Orange hint tick at the same position.
+  const hintTickHeight = 120;
+  const tick = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  tick.setAttribute("x1", xPos);
+  tick.setAttribute("y1", yCenter - hintTickHeight);
+  tick.setAttribute("x2", xPos);
+  tick.setAttribute("y2", yCenter);
+  tick.setAttribute("stroke", "#ff9800");
+  tick.setAttribute("stroke-width", "18");
+  tick.style.opacity = "0";
+  tick.style.transition = "opacity 0.8s ease-out";
+
+  const hint = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  hint.setAttribute("x", xPos);
+  hint.setAttribute("y", labelY);
+  hint.setAttribute("text-anchor", "middle");
+  hint.setAttribute("fill", "#ff9800"); // orange
+  hint.setAttribute("font-family", "Impact, Arial, sans-serif");
+  // Normal tick labels use font-size "240"; hints are 1.25x that.
+  hint.setAttribute("font-size", "300");
+  hint.style.opacity = "0";
+  hint.style.transition = "opacity 0.8s ease-out";
+  hint.textContent = String(value);
+
+  group.appendChild(tick);
+  group.appendChild(hint);
+
+  // Mark as shown in state and fade in.
+  gameState.shownHints[value] = true;
+  requestAnimationFrame(function () {
+    hint.style.opacity = "1";
+    tick.style.opacity = "1";
+  });
 }
+
+
+// Reset all hint-related state and remove any existing hint labels.
+function resetHintState() {
+  gameState.wrongAttemptsForHints = 0;
+  gameState.shownHints = {};
+  gameState.hintRound1Played = false;
+  gameState.hintRound2Played = false;
+  const group = document.getElementById("labelsGroupHints");
+  if (group) {
+    group.innerHTML = "";
+  }
+  // Reset fairy/hint voice coupling so each level/run starts clean.
+  skipHintVoiceThisRound = false;
+  // Also reset any fairy guidance overlay so each level/run starts clean.
+  clearFairyState();
+}
+
+
+// Fairy guidance video/audio and panel fade helpers
+let fairyVideoEl = null;
+let fairyAudio = null;
+let fairyGreetingAudio = null;
+let fairyUltFailAudio = null;
+let fairyVideoSrc = null;
+let fairyHasAppeared = false;
+
+// When the fairy appears for a particular round, skip human input/hint voices
+// for the next input prompt so they do not overlap with the fairy guidance.
+let skipHintVoiceThisRound = false;
+// DOM container and state for fairy round multiple-choice options.
+let fairyOptionsContainer = null;
+let fairyOptionButtons = [];
+let fairyRoundResolved = false;
+
+function initFairyMedia() {
+  if (fairyVideoEl && fairyAudio && fairyGreetingAudio) {
+    return;
+  }
+
+  const videoCandidates = [
+    { path: "./bear_fairy.webm", mime: "video/webm" },
+    { path: "./bear_fairy.mp4", mime: "video/mp4" },
+  ];
+  const videoProbe = document.createElement("video");
+  let videoUrl = null;
+  for (let i = 0; i < videoCandidates.length; i++) {
+    const candidate = videoCandidates[i];
+    const sanitizedCandidateUrl =
+      typeof window.sanitizeMediaUrl === "function"
+        ? window.sanitizeMediaUrl(candidate.path)
+        : candidate.path;
+    if (!sanitizedCandidateUrl) continue;
+
+    if (
+      typeof videoProbe.canPlayType === "function" &&
+      candidate.mime &&
+      videoProbe.canPlayType(candidate.mime) === ""
+    ) {
+      continue;
+    }
+
+    videoUrl = sanitizedCandidateUrl;
+    break;
+  }
+
+    const greetingUrl =
+    typeof window.sanitizeMediaUrl === "function"
+      ? window.sanitizeMediaUrl("./bear_fairy_greeting.mp3")
+      : "./bear_fairy_greeting.mp3";
+
+  const audioUrl =
+    typeof window.sanitizeMediaUrl === "function"
+      ? window.sanitizeMediaUrl("./bear_fairy_input.mp3")
+      : "./bear_fairy_input.mp3";
+
+  const ultFailUrl =
+    typeof window.sanitizeMediaUrl === "function"
+      ? window.sanitizeMediaUrl("./bear_fairy_ultfail.mp3")
+      : "./bear_fairy_ultfail.mp3";
+
+
+
+  fairyVideoEl = document.createElement("video");
+  fairyVideoEl.id = "bearFairyVideo";
+  fairyVideoEl.style.position = "fixed";
+  fairyVideoEl.style.left = "7.5vw";
+  fairyVideoEl.style.top = "50vh";
+  fairyVideoEl.style.height = "auto";
+  // Make the fairy video 3.5x larger than before.
+  fairyVideoEl.style.width = "20vw";
+
+  fairyVideoEl.style.transform = "translate(-50%, -50%)";
+  fairyVideoEl.style.zIndex = "1400";
+  fairyVideoEl.style.opacity = "0";
+  fairyVideoEl.style.pointerEvents = "none";
+  fairyVideoEl.loop = true;
+  fairyVideoEl.autoplay = true;
+  fairyVideoEl.playsInline = true;
+  // Video is visual-only; guidance audio is provided by separate mp3 tracks.
+  fairyVideoEl.muted = true;
+
+  if (videoUrl) {
+    fairyVideoSrc = videoUrl;
+    fairyVideoEl.src = videoUrl;
+    try {
+      fairyVideoEl.load();
+    } catch (_) {}
+  } else {
+    fairyVideoSrc = null;
+  }
+
+  document.body.appendChild(fairyVideoEl);
+
+  fairyGreetingAudio = new Audio();
+  if (greetingUrl) {
+    fairyGreetingAudio.src = greetingUrl;
+    fairyGreetingAudio.preload = "auto";
+    try {
+      fairyGreetingAudio.load();
+    } catch (_) {}
+  }
+
+    fairyAudio = new Audio();
+  if (audioUrl) {
+    fairyAudio.src = audioUrl;
+    fairyAudio.preload = "auto";
+    try {
+      fairyAudio.load();
+    } catch (_) {}
+  }
+
+  fairyUltFailAudio = new Audio();
+  if (ultFailUrl) {
+    fairyUltFailAudio.src = ultFailUrl;
+    fairyUltFailAudio.preload = "auto";
+    try {
+      fairyUltFailAudio.load();
+    } catch (_) {}
+  }
+}
+
+
+
+function clearFairyState() {
+  fairyHasAppeared = false;
+  fairyRoundResolved = false;
+  if (fairyVideoEl) {
+    try {
+      fairyVideoEl.pause();
+    } catch (_) {}
+    fairyVideoEl.style.opacity = "0";
+  }
+    if (fairyGreetingAudio) {
+    try {
+      fairyGreetingAudio.pause();
+      fairyGreetingAudio.currentTime = 0;
+    } catch (_) {}
+  }
+  if (fairyAudio) {
+    try {
+      fairyAudio.pause();
+      fairyAudio.currentTime = 0;
+    } catch (_) {}
+  }
+  if (fairyUltFailAudio) {
+    try {
+      fairyUltFailAudio.pause();
+      fairyUltFailAudio.currentTime = 0;
+    } catch (_) {}
+  }
+
+  if (giftControlPanel) {
+    giftControlPanel.style.transition = "";
+    giftControlPanel.style.opacity = "";
+    giftControlPanel.style.pointerEvents = "";
+  }
+  if (giftPanelTriangleSvg) {
+    giftPanelTriangleSvg.style.transition = "";
+    giftPanelTriangleSvg.style.opacity = "";
+  }
+  if (fairyOptionsContainer) {
+    fairyOptionsContainer.style.display = "none";
+    fairyOptionsContainer.innerHTML = "";
+  }
+  fairyOptionButtons = [];
+}
+
+function ensureFairyOptionsContainer() {
+  if (fairyOptionsContainer) return fairyOptionsContainer;
+  const container = document.createElement("div");
+  container.id = "fairyOptionsContainer";
+    container.style.position = "fixed";
+  container.style.left = "0";
+  // Position the container so that the option centres sit at ~85vh.
+  container.style.top = "70vh";
+  container.style.width = "100%";
+  container.style.display = "flex";
+
+  container.style.justifyContent = "space-evenly";
+  container.style.alignItems = "center";
+  container.style.zIndex = "1450";
+  container.style.pointerEvents = "auto";
+  document.body.appendChild(container);
+  fairyOptionsContainer = container;
+  return container;
+}
+
+function getFairyRange() {
+  const rangeMin =
+    typeof gameState.rangeMin === "number" && gameState.rangeMin >= 0
+      ? gameState.rangeMin
+      : 0;
+  const rangeMax =
+    typeof gameState.rangeMax === "number" && gameState.rangeMax >= rangeMin
+      ? gameState.rangeMax
+      : 20;
+  return { rangeMin, rangeMax };
+}
+
+function generateAlternativeAnswer(correct) {
+  // Wrapper kept for backward compatibility: delegate to the SEN-aware
+  // smart wrong-option generator.
+  const { rangeMin, rangeMax } = getFairyRange();
+  return getSmartWrongOption(correct, currentRoundGuesses, rangeMin, rangeMax);
+}
+
+
+function showFairyOptionsForCurrentGift() {
+  if (fairyRoundResolved) return;
+  if (typeof activeGiftValue !== "number") return;
+
+  const correctValue = activeGiftValue;
+  const alternativeValue = generateAlternativeAnswer(correctValue);
+
+  const container = ensureFairyOptionsContainer();
+  container.style.display = "flex";
+  container.innerHTML = "";
+
+  fairyOptionButtons = [];
+
+  const values = Math.random() < 0.5
+    ? [correctValue, alternativeValue]
+    : [alternativeValue, correctValue];
+
+  values.forEach((value) => {
+        const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = String(value);
+
+    // Base option size: 20vh high/wide, font-size 80% of height.
+    btn.style.height = "20vh";
+    btn.style.width = "20vh";
+    btn.style.borderRadius = "50%";
+    btn.style.backgroundColor = "#ffffff";
+    btn.style.color = "#000000";
+    btn.style.display = "flex";
+    btn.style.alignItems = "center";
+    btn.style.justifyContent = "center";
+    btn.style.fontFamily = "Nightgazer16, system-ui, sans-serif";
+    btn.style.fontSize = "16vh";
+    btn.style.border = "0.4vh solid #dddddd";
+    btn.style.boxShadow = "0 0.5vh 1vh rgba(0,0,0,0.25)";
+    btn.style.cursor = "pointer";
+    btn.style.transition = "all 0.6s ease";
+    btn.style.transform = "scale(1)";
+
+    btn.dataset.value = String(value);
+    btn.dataset.correct = value === correctValue ? "true" : "false";
+
+    btn.addEventListener("click", () => {
+      handleFairyOptionClick(btn);
+    });
+
+    fairyOptionButtons.push(btn);
+
+    // Base plate behind each circular option to give a 3D button feel.
+    const plate = document.createElement("div");
+    plate.className = "fairy-option-plate";
+    plate.style.display = "flex";
+    plate.style.alignItems = "center";
+    plate.style.justifyContent = "center";
+    plate.style.padding = "1.5vh";
+    plate.style.borderRadius = "2vh";
+    plate.style.background = "rgba(0, 0, 0, 0.12)";
+    plate.style.border = "0.5vh solid #000000";
+    plate.style.boxShadow =
+      "0 1vh 2vh rgba(0,0,0,0.35), " +
+      "0 -0.3vh 0.6vh rgba(255,255,255,0.3)";
+    plate.style.transition = "all 0.6s ease";
+    // Fix the plate height so that the option centre stays put even
+    // when the circular button grows or shrinks.
+    plate.style.height = "28vh";
+    plate.style.width = "28vh";
+    plate.style.boxSizing = "border-box";
+    plate.style.overflow = "visible";
+
+
+    plate.appendChild(btn);
+    container.appendChild(plate);
+
+  });
+}
+
+
+function handleFairyOptionClick(btn) {
+  if (fairyRoundResolved) return;
+  fairyRoundResolved = true;
+
+  const isCorrect = btn.dataset.correct === "true";
+
+    if (isCorrect) {
+    // Correct choice: grow to 25vh and turn green over 2 seconds.
+    btn.style.backgroundColor = "#bbf7d0"; // light green
+    btn.style.color = "#166534"; // dark green
+    btn.style.height = "25vh";
+    btn.style.width = "25vh";
+    btn.style.fontSize = "20vh"; // 80% of height
+    btn.style.transform = "scale(1)";
+
+    if (typeof window.playClawAttemptSuccess === "function") {
+      window.playClawAttemptSuccess();
+    }
+
+    // After the animation, treat this as a success for the current question.
+    setTimeout(() => {
+      handleFairyRoundSuccess();
+    }, 3000);
+    } else {
+    // Wrong choice: shrink to 10vh and turn red over 2 seconds.
+    btn.style.backgroundColor = "#fecaca"; // light red
+    btn.style.color = "#991b1b"; // dark red
+    btn.style.height = "10vh";
+    btn.style.width = "10vh";
+    btn.style.fontSize = "8vh"; // 80% of height
+    btn.style.transform = "scale(1)";
+
+        if (typeof window.playClawAttemptFail === "function") {
+      window.playClawAttemptFail();
+    }
+
+    // Immediately after the mechanical claw fail sound, play the
+    // ultimate fairy fail voice.
+    if (fairyUltFailAudio) {
+      try {
+        fairyUltFailAudio.currentTime = 0;
+        fairyUltFailAudio.play();
+      } catch (_) {}
+    }
+
+    // After 2 seconds, highlight the correct option (expanded size).
+
+    setTimeout(() => {
+      const correctBtn = fairyOptionButtons.find(
+        (b) => b.dataset.correct === "true"
+      );
+      if (correctBtn) {
+        correctBtn.style.backgroundColor = "#bbf7d0";
+        correctBtn.style.color = "#166534";
+        correctBtn.style.height = "25vh";
+        correctBtn.style.width = "25vh";
+        correctBtn.style.fontSize = "20vh";
+        correctBtn.style.transform = "scale(1)";
+      }
+    }, 2000);
+
+    // 4 seconds after that, treat this as a success for the current question.
+    setTimeout(() => {
+      handleFairyRoundSuccess();
+    }, 5000);
+  }
+
+}
+
+
+function handleFairyRoundSuccess() {
+  // MC question answered; clear the current round's attempt log so the next
+  // gift starts with a fresh local profile.
+  resetCurrentRoundGuesses();
+
+  // Use the same run-state progression logic as a normal successful catch,
+  // but without driving the claw machine.
+  let isFinalLevel = false;
+  let completedLevelIndex = 1;
+  let totalLevels = 5;
+  let totalAttempts = null;
+
+
+  if (window.gameCookie) {
+    const api = window.gameCookie;
+
+    if (typeof api.handleLevelCompleted === "function") {
+      api.handleLevelCompleted();
+    }
+
+    const state = typeof api.getRunState === "function" ? api.getRunState() : null;
+    if (state) {
+      completedLevelIndex =
+        typeof state.levelsCompleted === "number" && state.levelsCompleted > 0
+          ? state.levelsCompleted
+          : (typeof state.currentLevelIndex === "number"
+              ? state.currentLevelIndex
+              : 1);
+      totalLevels = typeof api.LEVELS_PER_RUN === "number"
+        ? api.LEVELS_PER_RUN
+        : 5;
+      isFinalLevel = state.status === "complete" || completedLevelIndex >= totalLevels;
+    }
+
+    if (typeof api.getTotalDropAttemptsForRun === "function") {
+      totalAttempts = api.getTotalDropAttemptsForRun();
+    }
+  }
+
+  // Hide fairy options UI once the round is resolved.
+  if (fairyOptionsContainer) {
+    fairyOptionsContainer.style.display = "none";
+  }
+
+  if (isFinalLevel) {
+    if (typeof window.playTotalVictory === "function") {
+      window.playTotalVictory();
+    }
+    setTimeout(() => {
+      showVictoryModal(true, completedLevelIndex, totalLevels, totalAttempts);
+      createConfetti();
+    }, 2000);
+  } else {
+    if (typeof window.playMiddleLevelSuccessSfx === "function") {
+      window.playMiddleLevelSuccessSfx();
+    }
+    setTimeout(() => {
+      showVictoryModal(false, completedLevelIndex, totalLevels, totalAttempts);
+    }, 2000);
+  }
+}
+
+function showFairyGuidance() {
+  if (fairyHasAppeared) return;
+
+  if (!fairyVideoEl || !fairyAudio || !fairyGreetingAudio) {
+    initFairyMedia();
+  }
+
+  fairyHasAppeared = true;
+  // Skip human input/hint voices for the next prompt so they don’t overlap with the fairy.
+  skipHintVoiceThisRound = true;
+
+  // Fade out the input panel over 2 seconds and disable interaction.
+  if (giftControlPanel) {
+    giftControlPanel.style.transition = "opacity 2s ease-out";
+    giftControlPanel.style.opacity = "0";
+    giftControlPanel.style.pointerEvents = "none";
+    setGiftKeyboardEnabled(false, true);
+    setGiftPanelButtonsLocked(true);
+  }
+
+  // Hide the triangle that attaches to the bottom-right of the panel.
+  if (giftPanelTriangleSvg) {
+    giftPanelTriangleSvg.style.transition = "opacity 2s ease-out";
+    giftPanelTriangleSvg.style.opacity = "0";
+  }
+
+  // Fade in the fairy video over 2 seconds and start playback immediately (looping).
+  if (fairyVideoEl) {
+    fairyVideoEl.style.transition = "opacity 2s ease-in";
+    fairyVideoEl.style.opacity = "1";
+
+    if (fairyVideoSrc) {
+      if (typeof window.safePlayMedia === "function") {
+        window.safePlayMedia(fairyVideoEl, fairyVideoSrc);
+      } else {
+        try {
+          fairyVideoEl.play();
+        } catch (_) {}
+      }
+    }
+  }
+
+  // Play greeting first; once it finishes, play the input guidance and
+  // show the multiple-choice buttons.
+  if (fairyGreetingAudio) {
+    try {
+      fairyGreetingAudio.currentTime = 0;
+      fairyGreetingAudio.onended = function () {
+        fairyGreetingAudio.onended = null;
+        if (fairyAudio) {
+          try {
+            fairyAudio.currentTime = 0;
+            fairyAudio.play();
+          } catch (_) {}
+        }
+        showFairyOptionsForCurrentGift();
+      };
+      fairyGreetingAudio.play();
+    } catch (_) {
+      // Fallback: if greeting cannot play, go straight to input + options.
+      try {
+        if (fairyAudio) {
+          fairyAudio.currentTime = 0;
+          fairyAudio.play();
+        }
+      } catch (_) {}
+      showFairyOptionsForCurrentGift();
+    }
+  } else {
+    // No greeting audio: just play the input guidance and show options.
+    try {
+      if (fairyAudio) {
+        fairyAudio.currentTime = 0;
+        fairyAudio.play();
+      }
+    } catch (_) {}
+    showFairyOptionsForCurrentGift();
+  }
+}
+
+
+
+// Track wrong attempts and show hints according to level / thresholds.
+function handleWrongAttemptForHints() {
+  if (typeof gameState.wrongAttemptsForHints !== "number") {
+    gameState.wrongAttemptsForHints = 0;
+  }
+  gameState.wrongAttemptsForHints += 1;
+
+  const level = getHintLevelFromRange();
+  if (!level) return;
+
+  const attempts = gameState.wrongAttemptsForHints;
+
+  if (level === 1) {
+    // Level 1: after 2 wrong attempts, fade in mark 5.
+    if (attempts >= 2) {
+      showHintLabelAt(5);
+    }
+    // After 3 wrong attempts, summon the fairy guidance.
+    if (attempts >= 3) {
+      showFairyGuidance();
+    }
+  } else if (level === 2) {
+    // Level 2: after 2 wrong attempts, fade in 15.
+    if (attempts >= 2) {
+      showHintLabelAt(15);
+    }
+    // After 3 wrong attempts, summon the fairy guidance.
+    if (attempts >= 3) {
+      showFairyGuidance();
+    }
+  } else if (level === 3) {
+    // Level 3: after 2 wrong attempts, fade in 10.
+    if (attempts >= 2) {
+      showHintLabelAt(10);
+    }
+    // After 3 wrong attempts, fade in 5 and 15.
+    if (attempts >= 3) {
+      showHintLabelAt(5);
+      showHintLabelAt(15);
+    }
+    // After 4 wrong attempts, summon the fairy guidance.
+    if (attempts >= 4) {
+      showFairyGuidance();
+    }
+  }
+}
+
+
 
 // Render the bottom number line ticks and labels.
 // Visuals are matched exactly to scale.txt: only 0 and the max value,
 // white ticks, Impact-style font, and the same spacing.
 function renderNumberLine(scale) {
+
   const ticksGroupBack = document.getElementById("ticksGroupBack");
   const labelsGroupBack = document.getElementById("labelsGroupBack");
   const ticksGroup = document.getElementById("ticksGroup");
@@ -3545,16 +4338,18 @@ function renderNumberLine(scale) {
     groupLabels.appendChild(label);
   }
 
-  // Only draw ticks at 0 and at the maximum value (10 or 20)
-  for (let i = 0; i <= scale; i += scale) {
-    // Guaranteed perfectly even spacing using linear interpolation
-    const xPos = startX + (i / scale) * totalWidth;
+    // Always draw ticks at 0 and at 20 on the visual number line.
+  const fixedMin = 0;
+  const fixedMax = 20;
+  const values = [fixedMin, fixedMax];
+  values.forEach((value) => {
+    const xPos = startX + (value / fixedMax) * totalWidth;
     appendTickAndLabel(
       ticksGroupBack,
       labelsGroupBack,
       xPos + backOffsetX,
       yCenter + backOffsetY,
-      i,
+      value,
       "rgba(150,150,150,0.75)",
       "rgba(150,150,150,0.8)",
       "0.8",
@@ -3566,7 +4361,39 @@ function renderNumberLine(scale) {
       labelsGroup,
       xPos,
       yCenter,
-      i,
+      value,
+      "white",
+      "white",
+      "1",
+      "240",
+      "18"
+    );
+  });
+
+  // If the playable range is a proper subset of [0, 20], add an extra tick at 10.
+  const minNumber = typeof gameState.rangeMin === "number" ? gameState.rangeMin : fixedMin;
+  const maxNumber = typeof gameState.rangeMax === "number" ? gameState.rangeMax : fixedMax;
+  if (minNumber !== fixedMin || maxNumber !== fixedMax) {
+    const midValue = 10;
+    const xPosMid = startX + (midValue / fixedMax) * totalWidth;
+    appendTickAndLabel(
+      ticksGroupBack,
+      labelsGroupBack,
+      xPosMid + backOffsetX,
+      yCenter + backOffsetY,
+      midValue,
+      "rgba(150,150,150,0.75)",
+      "rgba(150,150,150,0.8)",
+      "0.8",
+      "240",
+      "24"
+    );
+    appendTickAndLabel(
+      ticksGroup,
+      labelsGroup,
+      xPosMid,
+      yCenter,
+      midValue,
       "white",
       "white",
       "1",
@@ -3574,6 +4401,7 @@ function renderNumberLine(scale) {
       "18"
     );
   }
+
 }
 
 // Initialise the number line after URL/game config has been read.
@@ -3596,17 +4424,23 @@ function spawnRandomGiftBox() {
   const svg = document.getElementById("numberLineSVG");
   if (!svg) return;
 
-  const rect = svg.getBoundingClientRect();
-  const maxScale = getNumberLineScaleFromGameState();
-  const maxValue = maxScale && maxScale > 0 ? maxScale : 10;
+    const rect = svg.getBoundingClientRect();
 
-  // Random integer in [0, maxValue]
-  const v = Math.floor(Math.random() * (maxValue + 1));
+  // Gifts should spawn within the logical playable range.
+  const minNumber = typeof gameState.rangeMin === "number" ? gameState.rangeMin : 0;
+  const maxNumber = typeof gameState.rangeMax === "number" && gameState.rangeMax > minNumber
+    ? gameState.rangeMax
+    : 20;
+
+  // Random integer in [rangeMin, rangeMax]
+  const v = Math.floor(Math.random() * (maxNumber - minNumber + 1)) + minNumber;
 
   const startX = 50;
   const endX = 4950;
   const totalWidth = endX - startX;
-  const xSvg = startX + (v / maxValue) * totalWidth;
+  const fullScaleMax = 20;
+  const xSvg = startX + (v / fullScaleMax) * totalWidth;
+
 
   const viewBoxWidth = 5000;
   const ratioX = xSvg / viewBoxWidth;
@@ -3617,14 +4451,18 @@ function spawnRandomGiftBox() {
     activeGiftBox.parentNode.removeChild(activeGiftBox);
   }
 
-  // Reset gift-related state.
+    // Reset gift-related state.
   activeGiftBox = null;
   activeGiftValue = null;
   pendingCatchGift = false;
   hasCaughtGift = false;
   caughtGiftEl = null;
 
+  // Reset the current round attempt log whenever a new gift appears.
+  resetCurrentRoundGuesses();
+
   // Create a new gift box overlay centred at the chosen number-line position.
+
     const box = document.createElement("div");
   box.className = "gift-box";
   box.style.left = `${screenX}px`;
@@ -3634,7 +4472,7 @@ function spawnRandomGiftBox() {
 
   // Use an image as the gift marker.
   const icon = document.createElement("img");
-  icon.src = "./piece_5.png";
+  icon.src = "./golden_key.png";
   icon.alt = "Gift";
   icon.style.pointerEvents = "none";
   box.appendChild(icon);
@@ -3651,6 +4489,78 @@ function spawnRandomGiftBox() {
   }
 }
 
+function computeStarCount(totalAttempts, levelNo) {
+  const starThresholdMatrix = [
+    [7, 10],
+    [10, 15],
+    [10, 15],
+  ];
+
+  const thresholds = starThresholdMatrix[Math.max(0, (levelNo || 1) - 1)] || starThresholdMatrix[0];
+  if (totalAttempts <= thresholds[0]) return 3;
+  if (totalAttempts <= thresholds[1]) return 2;
+  return 1;
+}
+
+function spawnStarSparkles(starEl) {
+  if (!starEl) return;
+  const sparklesToCreate = 6;
+  for (let i = 0; i < sparklesToCreate; i++) {
+    const sparkle = document.createElement("div");
+    sparkle.className = "star-sparkle";
+    const angle = Math.random() * Math.PI * 2;
+    const distance = (starEl.offsetHeight || 0) * (0.4 + Math.random() * 0.4);
+    const dx = Math.cos(angle) * distance;
+    const dy = Math.sin(angle) * distance;
+    sparkle.style.setProperty("--sparkleX", `${dx}px`);
+    sparkle.style.setProperty("--sparkleY", `${dy}px`);
+    starEl.appendChild(sparkle);
+    setTimeout(() => {
+      sparkle.remove();
+    }, 1000);
+  }
+}
+
+function animateFinalVictoryStars(starCount, onComplete) {
+  if (!victoryStarsContainer) {
+    if (typeof onComplete === "function") onComplete();
+    return;
+  }
+
+  victoryStarsContainer.innerHTML = "";
+
+  if (starCount <= 0) {
+    if (typeof onComplete === "function") onComplete();
+    return;
+  }
+
+  for (let i = 0; i < starCount; i++) {
+    const starWrapper = document.createElement("div");
+    starWrapper.className = "victory-star";
+    const img = document.createElement("img");
+    img.src = "./award_star.png";
+    img.alt = "Star";
+    img.className = "victory-star-image";
+    starWrapper.appendChild(img);
+    victoryStarsContainer.appendChild(starWrapper);
+  }
+
+  const stars = victoryStarsContainer.querySelectorAll(".victory-star");
+  stars.forEach((starEl, index) => {
+    const delayMs = index * 1000;
+    setTimeout(() => {
+      starEl.classList.add("victory-star-pop");
+      spawnStarSparkles(starEl);
+      if (typeof window.playClawAttemptSuccess === "function") {
+        window.playClawAttemptSuccess();
+      }
+      if (index === stars.length - 1 && typeof onComplete === "function") {
+        setTimeout(onComplete, 200);
+      }
+    }, delayMs);
+  });
+}
+
 function showVictoryModal(isFinalLevel, completedLevelIndex, totalLevels, totalAttempts) {
   if (!victoryModal) return;
 
@@ -3663,15 +4573,48 @@ function showVictoryModal(isFinalLevel, completedLevelIndex, totalLevels, totalA
     window.stopVictorySuccessVoice();
   }
 
+  // Reset text and star visibility.
+  if (messageEl) {
+    messageEl.style.display = "";
+    messageEl.textContent = "";
+  }
+  if (victoryHeadline) {
+    victoryHeadline.classList.add("hidden");
+  }
+  if (victorySubheadline) {
+    victorySubheadline.classList.add("hidden");
+  }
+  if (victoryStarsContainer) {
+    victoryStarsContainer.classList.add("hidden");
+    victoryStarsContainer.innerHTML = "";
+  }
+  if (victoryExtraText) {
+    victoryExtraText.classList.add("hidden");
+    victoryExtraText.textContent = "";
+  }
 
   if (isFinalLevel) {
-    const attemptsText = Number.isFinite(totalAttempts)
-      ? `\n總共嘗試 ${totalAttempts} 次`
-      : "";
-    if (messageEl) {
-      messageEl.textContent =
-        `🎉 恭喜完成 ${totalLevels} 關！\n你已成功尋回全部禮物。${attemptsText}`;
-      messageEl.style.color = "#16a34a";
+    const stars = computeStarCount(totalAttempts, totalLevels);
+
+    if (victoryHeadline) {
+      victoryHeadline.textContent = "🎉 你成功尋回全部鎖匙！";
+      victoryHeadline.classList.remove("hidden");
+      victoryHeadline.style.color = "#16a34a";
+    }
+    if (victorySubheadline) {
+      victorySubheadline.textContent = "你獲得了";
+      victorySubheadline.classList.remove("hidden");
+      victorySubheadline.style.color = "#16a34a";
+    }
+
+    if (victoryStarsContainer) {
+      victoryStarsContainer.classList.remove("hidden");
+    }
+
+    const hasFullStars = stars >= 3;
+    if (!hasFullStars && victoryExtraText) {
+      victoryExtraText.textContent = "下次估算得準確一些就可以得到多些星星了！";
+      victoryExtraText.classList.remove("hidden");
     }
 
     if (primaryBtn) {
@@ -3686,11 +4629,29 @@ function showVictoryModal(isFinalLevel, completedLevelIndex, totalLevels, totalA
       secondaryBtn.className = "victory-button victory-button-secondary-menu";
       secondaryBtn.classList.remove("hidden");
     }
+
+    victoryModal.classList.remove("hidden");
+
+    // For final-level victory, first show the stars, then play the appropriate voice.
+    animateFinalVictoryStars(stars, function () {
+      const hasFullStarsAfter = stars >= 3;
+      if (!hasFullStarsAfter) {
+        if (typeof window.playMoreStarVoice === "function") {
+          window.playMoreStarVoice();
+        }
+      } else {
+        if (typeof window.playVictorySuccessVoice === "function") {
+          window.playVictorySuccessVoice();
+        }
+      }
+    });
   } else {
+    // Middle-level success: keep original text-based message.
     if (messageEl) {
       messageEl.textContent =
         `👍 做得好！已完成第 ${completedLevelIndex} / ${totalLevels} 關\n前往下一關吧 🚀`;
       messageEl.style.color = "#16a34a";
+      messageEl.style.display = "";
     }
 
     if (primaryBtn) {
@@ -3702,15 +4663,16 @@ function showVictoryModal(isFinalLevel, completedLevelIndex, totalLevels, totalA
     if (secondaryBtn) {
       secondaryBtn.classList.add("hidden");
     }
-  }
 
-  victoryModal.classList.remove("hidden");
+    victoryModal.classList.remove("hidden");
 
-  // Play a random success voice variant when the victory modal appears.
-  if (typeof window.playVictorySuccessVoice === "function") {
-    window.playVictorySuccessVoice();
+    // Play a random success voice variant when the victory modal appears.
+    if (typeof window.playVictorySuccessVoice === "function") {
+      window.playVictorySuccessVoice();
+    }
   }
 }
+
 
 function hideVictoryModal() {
 
@@ -3730,22 +4692,613 @@ function handleNextLevelClick() {
     window.gameCookie.startLevelTimer();
   }
 
+  // Clear any existing hint ticks/labels so the next level starts fresh.
+  resetHintState();
+
   spawnRandomGiftBox();
 }
 
 
+
 function getCurrentRangeAndTolerance() {
+  const rangeMin =
+    typeof gameState.rangeMin === "number" && gameState.rangeMin >= 0
+      ? gameState.rangeMin
+      : 0;
   const rangeMax =
-    typeof gameState.maxNumber === "number" && gameState.maxNumber > 0
-      ? gameState.maxNumber
-      : 10;
+    typeof gameState.rangeMax === "number" && gameState.rangeMax > rangeMin
+      ? gameState.rangeMax
+      : 20;
   const clampTolerance =
     typeof gameState.clampTolerance === "number" && gameState.clampTolerance > 0
       ? gameState.clampTolerance
       : 1;
 
-  return { rangeMax, clampTolerance };
+  return { rangeMin, rangeMax, clampTolerance };
 }
+
+// Play range-specific human overflow guidance when the input number
+// exceeds the current playable range. The overflow detection logic
+// itself is unchanged; this helper is only an additional voice track.
+let humanOverflowAudio = null;
+
+function playHumanOverflowVoiceForCurrentRange() {
+  const { rangeMin, rangeMax } = getCurrentRangeAndTolerance();
+  const fileName = `./voice_human_overflow_${rangeMin}_${rangeMax}.mp3`;
+
+  const url =
+    typeof window.sanitizeMediaUrl === "function"
+      ? window.sanitizeMediaUrl(fileName)
+      : fileName;
+
+  if (!url) {
+    return;
+  }
+
+  if (!humanOverflowAudio) {
+    humanOverflowAudio = new Audio();
+    humanOverflowAudio.preload = "auto";
+  }
+
+  try {
+    humanOverflowAudio.src = url;
+    humanOverflowAudio.currentTime = 0;
+    humanOverflowAudio.play();
+  } catch (_) {
+    // If playback fails (missing file, browser restriction, etc.),
+    // silently ignore so the core overflow behaviour remains intact.
+  }
+}
+
+
+// ======================= SEN Estimation Profile (Smart Wrong Option) =======================
+
+const SEN_PROFILE_STORAGE_KEY = "sen_claw_game_data";
+
+function loadProfileData() {
+  let root = {};
+
+  try {
+    const raw = window.localStorage ? window.localStorage.getItem(SEN_PROFILE_STORAGE_KEY) : null;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        root = parsed;
+      }
+    }
+  } catch (_) {
+    // localStorage may be unavailable; fall back to an in-memory profile.
+  }
+
+  // New structure: biasProfile.ranges["min-max"] = { zones: {low/mid/high}, successStreak }
+  if (!root.biasProfile || typeof root.biasProfile !== "object") {
+    root.biasProfile = { ranges: {} };
+  } else if (!root.biasProfile.ranges && root.biasProfile.zones) {
+    // Migrate legacy single-range structure into a "legacy" range key so we
+    // don't discard existing data.
+    const oldZones = root.biasProfile.zones;
+    const oldSuccess =
+      typeof root.biasProfile.successStreak === "number"
+        ? root.biasProfile.successStreak
+        : 0;
+    root.biasProfile = {
+      ranges: {
+        legacy: {
+          zones: oldZones,
+          successStreak: oldSuccess,
+        },
+      },
+    };
+  } else if (!root.biasProfile.ranges) {
+    root.biasProfile.ranges = {};
+  }
+
+  return root.biasProfile;
+}
+
+function getProfileRangeKey(rangeMin, rangeMax) {
+  const min = Number.isFinite(rangeMin) ? rangeMin : 0;
+  const max = Number.isFinite(rangeMax) ? rangeMax : 20;
+  return `${min}-${max}`;
+}
+
+function ensureRangeProfile(biasProfile, rangeMin, rangeMax) {
+  if (!biasProfile || typeof biasProfile !== "object") {
+    biasProfile = { ranges: {} };
+  }
+  if (!biasProfile.ranges || typeof biasProfile.ranges !== "object") {
+    biasProfile.ranges = {};
+  }
+
+  const key = getProfileRangeKey(rangeMin, rangeMax);
+  let rangeProfile = biasProfile.ranges[key];
+
+  if (!rangeProfile || typeof rangeProfile !== "object") {
+    rangeProfile = {
+      zones: {
+        low: {
+          under: 0,
+          over: 0,
+          missTotal: 0,
+          under2: 0,
+          under3: 0,
+          over2: 0,
+          over3: 0,
+        },
+        mid: {
+          under: 0,
+          over: 0,
+          missTotal: 0,
+          under2: 0,
+          under3: 0,
+          over2: 0,
+          over3: 0,
+        },
+        high: {
+          under: 0,
+          over: 0,
+          missTotal: 0,
+          under2: 0,
+          under3: 0,
+          over2: 0,
+          over3: 0,
+        },
+      },
+      successStreak: 0,
+    };
+    biasProfile.ranges[key] = rangeProfile;
+  } else {
+    const zones = rangeProfile.zones || (rangeProfile.zones = {});
+    ["low", "mid", "high"].forEach((name) => {
+      const z = zones[name] || (zones[name] = {});
+      if (typeof z.under !== "number") z.under = 0;
+      if (typeof z.over !== "number") z.over = 0;
+      if (typeof z.missTotal !== "number") z.missTotal = 0;
+      if (typeof z.under2 !== "number") z.under2 = 0;
+      if (typeof z.under3 !== "number") z.under3 = 0;
+      if (typeof z.over2 !== "number") z.over2 = 0;
+      if (typeof z.over3 !== "number") z.over3 = 0;
+    });
+    if (typeof rangeProfile.successStreak !== "number") {
+      rangeProfile.successStreak = 0;
+    }
+  }
+
+  return rangeProfile;
+}
+
+
+
+function saveProfileData(profile) {
+  try {
+    if (!window.localStorage) return;
+    const raw = window.localStorage.getItem(SEN_PROFILE_STORAGE_KEY);
+    let root = {};
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        root = parsed;
+      }
+    }
+
+    // Preserve any existing fields (e.g. best_record) and attach the bias
+    // profile alongside them.
+    root.biasProfile = profile;
+    window.localStorage.setItem(SEN_PROFILE_STORAGE_KEY, JSON.stringify(root));
+  } catch (_) {
+    // Swallow storage errors; the game should remain playable without
+    // persistent profiling.
+  }
+}
+
+function getRangeZoneForTarget(target, rangeMin, rangeMax) {
+  if (!Number.isFinite(target)) return "mid";
+  const span = rangeMax - rangeMin;
+  if (!Number.isFinite(span) || span <= 0) return "mid";
+
+  const normalized = (target - rangeMin) / span; // 0 → 1
+  if (normalized <= 1 / 3) return "low";
+  if (normalized >= 2 / 3) return "high";
+  return "mid";
+}
+
+function resetCurrentRoundGuesses() {
+  currentRoundGuesses = [];
+}
+
+function saveAttemptToHistory(target, guess, rangeMin, rangeMax) {
+  if (!Number.isFinite(target) || !Number.isFinite(guess)) {
+    return;
+  }
+
+  // Record in current-round log so Layer 1 can analyse the most recent
+  // 3–4 misses for the active gift.
+  const error = guess - target;
+  const isHit = Math.abs(error) <= 1; // SEN rule: ±1 is treated as a hit
+
+  currentRoundGuesses.push({ target, guess, isHit });
+
+    // Update persistent bias profile (Layer 2), scoped to the current range
+  // (so 0–10, 11–20, 0–20 each retain their own statistics).
+  const biasProfile = loadProfileData();
+  const rangeProfile = ensureRangeProfile(biasProfile, rangeMin, rangeMax);
+  const zoneName = getRangeZoneForTarget(target, rangeMin, rangeMax);
+  const zone = rangeProfile.zones[zoneName];
+
+  if (isHit) {
+    // Successful estimation: increase success streak and decay historical
+    // bias slightly so recent improvement is recognised. Only the current
+    // range's zones are decayed.
+    rangeProfile.successStreak = (rangeProfile.successStreak || 0) + 1;
+
+    Object.keys(rangeProfile.zones).forEach((key) => {
+      const z = rangeProfile.zones[key];
+      z.under = Math.floor(z.under * 0.8);
+      z.over = Math.floor(z.over * 0.8);
+      z.missTotal = Math.floor(z.missTotal * 0.8);
+      z.under2 = Math.floor((typeof z.under2 === "number" ? z.under2 : 0) * 0.8);
+      z.under3 = Math.floor((typeof z.under3 === "number" ? z.under3 : 0) * 0.8);
+      z.over2 = Math.floor((typeof z.over2 === "number" ? z.over2 : 0) * 0.8);
+      z.over3 = Math.floor((typeof z.over3 === "number" ? z.over3 : 0) * 0.8);
+    });
+
+    // After 5 consecutive successful attempts *within this range*, clear
+    // stale bias for this range only.
+    if (rangeProfile.successStreak >= 5) {
+      Object.keys(rangeProfile.zones).forEach((key) => {
+        const z = rangeProfile.zones[key];
+        z.under = 0;
+        z.over = 0;
+        z.missTotal = 0;
+        z.under2 = 0;
+        z.under3 = 0;
+        z.over2 = 0;
+        z.over3 = 0;
+      });
+      rangeProfile.successStreak = 0;
+    }
+  } else {
+    // Miss: reset success streak (for this range only) and accumulate
+    // under/over bias and magnitude buckets.
+    rangeProfile.successStreak = 0;
+    zone.missTotal += 1;
+    if (error < 0) {
+      zone.under += 1;
+      if (error === -2) zone.under2 += 1;
+      else if (error === -3) zone.under3 += 1;
+    } else if (error > 0) {
+      zone.over += 1;
+      if (error === 2) zone.over2 += 1;
+      else if (error === 3) zone.over3 += 1;
+    }
+  }
+
+  const contributionType = isHit
+    ? "hit"
+    : error < 0
+      ? "underestimation"
+      : error > 0
+        ? "overestimation"
+        : "exact";
+
+  console.log(
+    "[SEN] saveAttemptToHistory: target=%d, guess=%d, error=%d, isHit=%s, range=%s, zone=%s, contribution=%s, zoneStats={under:%d, over:%d, missTotal:%d, under2:%d, under3:%d, over2:%d, over3:%d}, successStreak(range)=%d",
+    target,
+    guess,
+    error,
+    isHit,
+    getProfileRangeKey(rangeMin, rangeMax),
+    zoneName,
+    contributionType,
+    zone.under,
+    zone.over,
+    zone.missTotal,
+    zone.under2,
+    zone.under3,
+    zone.over2,
+    zone.over3,
+    rangeProfile.successStreak
+  );
+
+  saveProfileData(biasProfile);
+}
+
+
+
+function getSmartWrongOption(target, currentRoundGuessesParam, rangeMin, rangeMax) {
+  if (!Number.isFinite(target)) {
+    return target;
+  }
+
+  const candidateOffsetsAll = [-3, -2, 2, 3];
+  let direction = null; // "under", "over", or null when inconclusive
+  let biasSource = "fallback"; // "layer1", "layer2", "fallback"
+
+  // ----- Layer 1: Local session analysis (current round) -----
+  const roundGuesses = Array.isArray(currentRoundGuessesParam)
+    ? currentRoundGuessesParam
+    : currentRoundGuesses;
+
+    const relevantMisses = roundGuesses.filter((attempt) => {
+    return (
+      attempt &&
+      attempt.target === target &&
+      !attempt.isHit &&
+      Number.isFinite(attempt.guess)
+    );
+  });
+
+  const recentMisses = relevantMisses.slice(-4);
+  const missCount = recentMisses.length;
+
+  let localUnderRatio = 0;
+  let localOverRatio = 0;
+  let localUnder2Count = 0;
+  let localUnder3Count = 0;
+  let localOver2Count = 0;
+  let localOver3Count = 0;
+
+  if (missCount >= 3) {
+    let under = 0;
+    let over = 0;
+    recentMisses.forEach((attempt) => {
+      const err = attempt.guess - target;
+      if (err < 0) {
+        under += 1;
+        if (err === -2) localUnder2Count += 1;
+        else if (err === -3) localUnder3Count += 1;
+      } else if (err > 0) {
+        over += 1;
+        if (err === 2) localOver2Count += 1;
+        else if (err === 3) localOver3Count += 1;
+      }
+    });
+
+    localUnderRatio = under / missCount;
+    localOverRatio = over / missCount;
+
+    if (localUnderRatio >= 0.6) {
+      direction = "under";
+      biasSource = "layer1";
+    } else if (localOverRatio >= 0.6) {
+      direction = "over";
+      biasSource = "layer1";
+    }
+
+    console.log(
+      "[SEN] Layer1 (current round) for target=%d: missCount=%d, under=%d (%.2f), over=%d (%.2f), localBuckets={under2:%d, under3:%d, over2:%d, over3:%d}, direction=%s",
+      target,
+      missCount,
+      under,
+      localUnderRatio,
+      over,
+      localOverRatio,
+      localUnder2Count,
+      localUnder3Count,
+      localOver2Count,
+      localOver3Count,
+      direction
+    );
+  } else {
+    console.log(
+      "[SEN] Layer1 (current round) for target=%d: insufficient misses (missCount=%d) for a clear tendency",
+      target,
+      missCount
+    );
+  }
+
+  // ----- Layer 2: Persistent profile analysis (historical context) -----
+  let histUnderRatio = 0;
+  let histOverRatio = 0;
+  let histUnder2 = 0;
+  let histUnder3 = 0;
+  let histOver2 = 0;
+  let histOver3 = 0;
+  let zoneNameForLog = null;
+  let zoneForLog = null;
+
+
+    if (!direction) {
+    const biasProfile = loadProfileData();
+    const rangeProfile = ensureRangeProfile(biasProfile, rangeMin, rangeMax);
+    const zoneName = getRangeZoneForTarget(target, rangeMin, rangeMax);
+    const zone = rangeProfile.zones[zoneName];
+    zoneNameForLog = zoneName;
+    zoneForLog = zone;
+
+    if (zone && zone.missTotal >= 3) {
+      histUnderRatio = zone.under / zone.missTotal;
+      histOverRatio = zone.over / zone.missTotal;
+      histUnder2 = typeof zone.under2 === "number" ? zone.under2 : 0;
+      histUnder3 = typeof zone.under3 === "number" ? zone.under3 : 0;
+      histOver2 = typeof zone.over2 === "number" ? zone.over2 : 0;
+      histOver3 = typeof zone.over3 === "number" ? zone.over3 : 0;
+
+      if (histUnderRatio >= 0.6) {
+        direction = "under";
+        biasSource = "layer2";
+      } else if (histOverRatio >= 0.6) {
+        direction = "over";
+        biasSource = "layer2";
+      }
+
+      if (biasSource === "layer2") {
+        // Highlight that Layer 2 has actively influenced the bias decision
+        // using a styled console message.
+        console.log(
+          "%c[SEN] Layer2 BIAS ACTIVE%c target=%d, range=%s, zone=%s, direction=%s",
+          "color:#10b981;font-weight:bold;",
+          "color:inherit;",
+          target,
+          getProfileRangeKey(rangeMin, rangeMax),
+          zoneName,
+          direction
+        );
+      }
+    }
+
+    console.log(
+      "[SEN] Layer2 (historical) for target=%d, range=%s, zone=%s: missTotal=%d, under=%d (%.2f), over=%d (%.2f), buckets={under2:%d, under3:%d, over2:%d, over3:%d}, direction=%s",
+      target,
+      getProfileRangeKey(rangeMin, rangeMax),
+      zoneName,
+      zone ? zone.missTotal : 0,
+      zone ? zone.under : 0,
+      histUnderRatio,
+      zone ? zone.over : 0,
+      histOverRatio,
+      histUnder2,
+      histUnder3,
+      histOver2,
+      histOver3,
+      direction
+    );
+  }
+
+
+
+
+  if (!direction) {
+    console.log(
+      "[SEN] Bias direction fallback for target=%d: no clear tendency in Layer1 or Layer2",
+      target
+    );
+  }
+
+  // If both layers are inconclusive, fall back to a neutral random direction.
+  let offsetPool;
+  if (direction === "under") {
+    offsetPool = [-3, -2];
+  } else if (direction === "over") {
+    offsetPool = [2, 3];
+  } else {
+    offsetPool = candidateOffsetsAll.slice();
+  }
+
+  function buildCandidates(offsets) {
+    const vals = [];
+    offsets.forEach((off) => {
+      const val = target + off;
+      if (val >= rangeMin && val <= rangeMax && val !== target) {
+        vals.push(val);
+      }
+    });
+    return vals;
+  }
+
+  // Prefer offsets that match the inferred bias direction.
+  let candidates = buildCandidates(offsetPool);
+
+  // Boundary clipping: if the preferred direction yields no valid options,
+  // fall back to the full set of ±2/±3 offsets.
+  if (!candidates.length) {
+    console.log(
+      "[SEN] Boundary clipping for target=%d: offsetPool=%j yielded no candidates within [%d,%d]; falling back to full offsets",
+      target,
+      offsetPool,
+      rangeMin,
+      rangeMax
+    );
+    candidates = buildCandidates(candidateOffsetsAll);
+  }
+
+    if (!candidates.length) {
+    // Extreme edge case (very tiny range): choose the nearest boundary that
+    // is not equal to the target.
+    const fallback = [];
+    if (rangeMin !== target) fallback.push(rangeMin);
+    if (rangeMax !== target && rangeMax !== rangeMin) fallback.push(rangeMax);
+    if (fallback.length) {
+      const chosenBoundary = fallback[Math.floor(Math.random() * fallback.length)];
+      console.log(
+        "[SEN] Extreme range fallback for target=%d: candidates empty, choosing boundary %d within [%d,%d]",
+        target,
+        chosenBoundary,
+        rangeMin,
+        rangeMax
+      );
+      return chosenBoundary;
+    }
+
+    // As a last resort, clamp target ±2 into the valid range.
+    let val = target + 2;
+    if (val < rangeMin) val = rangeMin;
+    if (val > rangeMax) val = rangeMax;
+    console.log(
+      "[SEN] Final clamp fallback for target=%d: returning %d within [%d,%d]",
+      target,
+      val,
+      rangeMin,
+      rangeMax
+    );
+    return val;
+  }
+
+  // Use weighted selection when we have a clear direction and bucket data,
+  // otherwise fall back to uniform random choice.
+  const weights = [];
+  let totalWeight = 0;
+
+  candidates.forEach((val) => {
+    const off = val - target;
+    let w = 1; // base weight
+
+    if (direction === "under") {
+      if (off === -2) {
+        w += localUnder2Count + histUnder2;
+      } else if (off === -3) {
+        w += localUnder3Count + histUnder3;
+      }
+    } else if (direction === "over") {
+      if (off === 2) {
+        w += localOver2Count + histOver2;
+      } else if (off === 3) {
+        w += localOver3Count + histOver3;
+      }
+    }
+
+    weights.push({ value: val, weight: w, offset: off });
+    totalWeight += w;
+  });
+
+  let chosen = null;
+
+  if (totalWeight > 0) {
+    const r = Math.random() * totalWeight;
+    let acc = 0;
+    for (let i = 0; i < weights.length; i++) {
+      acc += weights[i].weight;
+      if (r <= acc) {
+        chosen = weights[i].value;
+        break;
+      }
+    }
+  }
+
+  if (chosen == null) {
+    chosen = candidates[Math.floor(Math.random() * candidates.length)];
+  }
+
+  console.log(
+    "[SEN] getSmartWrongOption result: target=%d, range=[%d,%d], biasSource=%s, direction=%s, offsetPool=%j, candidates=%j, weights=%j, chosen=%d",
+    target,
+    rangeMin,
+    rangeMax,
+    biasSource,
+    direction,
+    offsetPool,
+    candidates,
+    weights,
+    chosen
+  );
+
+  // Randomly pick one smart wrong option from the candidate list.
+  return chosen;
+}
+
+
+
+
 
 function handleRestartRunClick() {
   if (typeof window.stopVictorySuccessVoice === "function") {
@@ -3754,28 +5307,33 @@ function handleRestartRunClick() {
 
   hideVictoryModal();
 
-  const { rangeMax, clampTolerance } = getCurrentRangeAndTolerance();
-
+  const { rangeMin, rangeMax, clampTolerance } = getCurrentRangeAndTolerance();
 
   if (window.gameCookie) {
     if (typeof window.gameCookie.resetRunStateForNewAttempt === "function") {
-      window.gameCookie.resetRunStateForNewAttempt(rangeMax, clampTolerance);
+      window.gameCookie.resetRunStateForNewAttempt(rangeMax, clampTolerance, rangeMin);
     }
     if (typeof window.gameCookie.initRunState === "function") {
-      window.gameCookie.initRunState(rangeMax, clampTolerance);
+      window.gameCookie.initRunState(rangeMax, clampTolerance, rangeMin);
     }
   }
 
+  resetHintState();
   spawnRandomGiftBox();
 }
+
 
 function handleReturnToMenuClick() {
   if (typeof window.stopVictorySuccessVoice === "function") {
     window.stopVictorySuccessVoice();
   }
 
+  // Clear hint ticks/labels when returning to the menu.
+  resetHintState();
+
   returnToMenu();
 }
+
 
 function returnToMenu() {
 
@@ -3832,16 +5390,21 @@ function waitForGameAssetsReady(timeoutMs = 8000) {
 async function bootstrapGame2() {
   await waitForGameAssetsReady();
 
-  initGameConfigFromUrl();
+    initGameConfigFromUrl();
   initNumberLineFromGameConfig();
   initGiftControlPanel();
 
-  const { rangeMax, clampTolerance } = getCurrentRangeAndTolerance();
+  // Preload fairy video/audio so guidance can appear without delay.
+  initFairyMedia();
+
+  const { rangeMin, rangeMax, clampTolerance } = getCurrentRangeAndTolerance();
   if (window.gameCookie && typeof window.gameCookie.initRunState === "function") {
-    window.gameCookie.initRunState(rangeMax, clampTolerance);
+    window.gameCookie.initRunState(rangeMax, clampTolerance, rangeMin);
   }
 
+  resetHintState();
   spawnRandomGiftBox();
+
 
   // Once the game has finished bootstrapping, hide the preparation overlay.
   if (typeof window.hidePrepOverlay === "function") {
@@ -3854,6 +5417,7 @@ async function bootstrapGame2() {
     window.hidePrepOverlay();
   }
 }
+
 
 
 

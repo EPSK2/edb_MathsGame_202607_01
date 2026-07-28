@@ -36,7 +36,7 @@
   </div>
 
   <!-- Toggle Button -->
-  <button onclick="toggleScale()" class="mt-8 px-6 py-2 bg-white text-white font-bold text-lg rounded shadow hover:bg-gray-800 transition">
+  <button onclick="toggleScale()" class="mt-8 px-6 py-2 bg-white text-white custom-font-bold text-lg rounded shadow hover:bg-gray-800 transition">
     Toggle 10 / 20 Scale
   </button>
 

@@ -6,6 +6,9 @@
   font-style: normal;
 }
 
+.custom-font-bold{
+  -webkit-text-stroke: 0.7px currentColor;
+}
 
 html,
 body{
@@ -482,6 +485,83 @@ body {
   white-space: pre-line;
 }
 
+.victory-stars {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: clamp(1.5rem, 3vw, 3rem);
+  margin-bottom: clamp(1.5rem, 3vw, 3rem);
+}
+
+.victory-star {
+  position: relative;
+  height: 15vh;
+  width: auto;
+  opacity: 0;
+  transform: scale(0.3);
+}
+
+.victory-star-image {
+  height: 100%;
+  width: auto;
+  display: block;
+}
+
+.victory-extra-text {
+  font-weight: 700;
+  color: #0f172a;
+  font-size: clamp(2.2rem, 4vw, 3.5rem);
+  line-height: 1.35;
+  white-space: pre-line;
+  margin-top: clamp(1rem, 2vw, 2rem);
+}
+
+.victory-star-pop {
+  animation: victoryStarPop 1s ease-out forwards;
+}
+
+@keyframes victoryStarPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.star-sparkle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4vh;
+  height: 4vh;
+  margin-top: -2vh;
+  margin-left: -2vh;
+  background-image: url("./award_star.png");
+  background-size: contain;
+  background-repeat: no-repeat;
+  opacity: 0.9;
+  pointer-events: none;
+  animation: starSparkleFly 1s ease-out forwards;
+}
+
+@keyframes starSparkleFly {
+  0% {
+    transform: translate(0, 0) scale(0.4);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(var(--sparkleX, 0), var(--sparkleY, 0)) scale(0.8);
+    opacity: 0;
+  }
+}
+
 .victory-buttons {
   display: flex;
   flex-wrap: wrap;
@@ -515,6 +595,7 @@ body {
   transform: translateY(-2px);
   box-shadow: 0 18px 30px rgba(15, 23, 42, 0.45);
 }
+
 
 /* Utility */
 .opacity-50 {
@@ -647,13 +728,15 @@ body {
 
 .gift-box img {
  display: block;
- width: 80px;
+ width: 40px;
  height: auto;
 }
 
+
 @font-face {
-  font-family: "Nightgazer16";
-  src: url("./Nightgazer16.ttf") format("truetype");
+  font-family: 'Nightgazer16';
+  src: url('./nightgazer16_subset.woff2') format('woff2');
+  font-display: swap;
   font-weight: normal;
   font-style: normal;
 }

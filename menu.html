@@ -6,7 +6,7 @@
   <meta http-equiv="Expires" content="0">
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>士多啤梨熊數綫尋寶 - 主選單</title>
+  <title>士多啤梨熊數線尋寶 - 主選單</title>
     <link rel="stylesheet" href="./menu_style.css" />
   <link rel="stylesheet" href="./prep_style.css" />
   <!-- Preload the helper bear image used in the final zoom animation -->
@@ -42,10 +42,10 @@
 
     <header class="game-header">
       <h1
-        class="font-bold text-center text-rose-900 drop-shadow-sm"
+        class="custom-font-bold text-center text-rose-900 drop-shadow-sm"
         style="font-size:8vh"
       >
-        🍓士多啤梨島任務1  數綫尋寶
+        🍓士多啤梨島任務1  數線尋寶
       </h1>
     </header>
 
@@ -58,8 +58,8 @@
     </div>
     
     <div id="menuShell" class="game-shell max-w-3xl mx-auto flex flex-col items-center justify-center min-h-screen">
-      <h1 id="gameTitle" class="text-4xl md:text-5xl font-bold text-center mb-8 text-amber-600 drop-shadow-md bg-white/80 px-6 py-5 rounded-3xl shadow-lg">
-        🍓士多啤梨島任務1：數綫尋寶
+      <h1 id="gameTitle" class="text-4xl md:text-5xl custom-font-bold text-center mb-8 text-amber-600 drop-shadow-md bg-white/80 px-6 py-5 rounded-3xl shadow-lg">
+        🍓士多啤梨島任務1：數線尋寶
       </h1>
 
                   <!-- 中央透明提示框 -->
@@ -148,14 +148,14 @@
 
       <div id="menuOptions" class="bg-white/90 rounded-3xl p-6 md:p-8 shadow-xl mb-8 flex flex-col items-center gap-4 w-full max-w-md hidden">
 
-          <h2 class="text-2xl font-bold text-amber-800 mb-2">選擇模式</h2>
+          <h2 class="text-2xl custom-font-bold text-amber-800 mb-2">選擇模式</h2>
           <div class="flex gap-4 w-full justify-center">
               <button class="mode-btn w-full" onclick="selectMode('ascending')">小 → 大</button>
               <button class="mode-btn w-full" onclick="selectMode('descending')">大 → 小</button>
           </div>
 
           <div id="difficultySelection" class="mt-4 flex flex-col items-center gap-4 w-full hidden transition-all">
-              <h2 class="text-2xl font-bold text-amber-800 mb-2">選擇難度</h2>
+              <h2 class="text-2xl custom-font-bold text-amber-800 mb-2">選擇難度</h2>
               <div class="flex gap-4 w-full justify-center">
                   <button class="difficulty-btn easy w-full" onclick="startGame('easy')">⭐ 1-10</button>
                   <button class="difficulty-btn hard w-full" onclick="startGame('hard')">⭐⭐ 1-20</button>

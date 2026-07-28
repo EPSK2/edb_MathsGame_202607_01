@@ -5,7 +5,7 @@ const ctx = canvas ? canvas.getContext("2d") : null;
 
 // Show the preparation/loading overlay while menu assets are loading.
 if (typeof window.showPrepOverlay === "function") {
-  window.showPrepOverlay("Strawberry");
+  window.showPrepOverlay("Tangerine");
 }
 
 
@@ -590,7 +590,7 @@ let selectAudio = null;
 function playNextPageSound() {
   try {
     if (!nextPageAudio) {
-      nextPageAudio = new Audio("next_page_sound.mp3");
+      nextPageAudio = new Audio("./next_page_sound.mp3");
     }
     nextPageAudio.currentTime = 0;
     nextPageAudio.play().catch(() => {});
@@ -602,7 +602,7 @@ function playNextPageSound() {
 function playSelectSound() {
   try {
     if (!selectAudio) {
-      selectAudio = new Audio("select_sound.mp3");
+      selectAudio = new Audio("./select_sound.mp3");
     }
     selectAudio.currentTime = 0;
     selectAudio.play().catch(() => {});
@@ -1249,10 +1249,10 @@ function preloadDialogAudio(timeoutMs = 8000) {
 
   // Ensure the dialog sound effects are created and preloaded.
   if (!nextPageAudio) {
-    nextPageAudio = new Audio("next_page_sound.mp3");
+    nextPageAudio = new Audio("./next_page_sound.mp3");
   }
   if (!selectAudio) {
-    selectAudio = new Audio("select_sound.mp3");
+    selectAudio = new Audio("./select_sound.mp3");
   }
 
   [nextPageAudio, selectAudio].forEach((audioEl) => {
@@ -1358,6 +1358,7 @@ window.onload = async function() {
   }
 
   let titleIntroStarted = false;
+  const titleStayDurationMs = 4000;
 
   const startTitleIntro = () => {
     if (!title || titleIntroStarted) return;
@@ -1375,7 +1376,9 @@ window.onload = async function() {
     const handleFlyInEnd = (event) => {
       if (event.animationName === "flyInFromTop") {
         title.removeEventListener("animationend", handleFlyInEnd);
-        startTitleExitAndMenu();
+        setTimeout(() => {
+          startTitleExitAndMenu();
+        }, titleStayDurationMs);
       }
     };
     title.addEventListener("animationend", handleFlyInEnd);

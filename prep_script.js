@@ -5,7 +5,7 @@
     "Grape",
     "WhitePeach",
     "Watermelon",
-    "Orange",
+    "Tangerine",
     "Pineapple",
     "Strawberry",
   ];
@@ -14,7 +14,7 @@
     Grape: "🍇",
     WhitePeach: "🍑",
     Watermelon: "🍉",
-    Orange: "🍊",
+    Tangerine: "🍊",
     Pineapple: "🍍",
     Strawberry: "🍓",
   };

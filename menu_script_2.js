@@ -1,5 +1,4 @@
 // ======================= 2.5D Jungle Canvas =======================
-
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas ? canvas.getContext("2d") : null;
 
@@ -13,29 +12,26 @@ const dialogSpeechBubbleEl = document.getElementById("dialogSpeechBubble");
   var CONTROL_CHARS_REGEX = /[\u0000-\u001F\u007F]/g;
 
   function sanitizeMediaUrl(raw) {
-    if (typeof raw !== "string") {
-      console.warn("[media] non-string URL", raw);
-      return null;
-    }
+    if (typeof raw !== "string") return null;
 
     var cleaned = raw.replace(CONTROL_CHARS_REGEX, "").trim();
-    if (!cleaned) {
-      console.warn("[media] cleaned URL is empty", { raw: raw });
-      return null;
-    }
+    if (!cleaned) return null;
 
     var urlObj;
     try {
-      urlObj = new URL(cleaned, window.location.origin);
+      // Resolve relative path against current page location
+      var baseDir = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+      urlObj = new URL(cleaned, baseDir);
     } catch (e) {
-      console.warn("[media] invalid URL format", { cleaned: cleaned, error: e });
       return null;
     }
 
+    // ✅ ADDED "file:" HERE so it works locally on your PC!
     var protocol = urlObj.protocol;
     if (
       protocol !== "http:" &&
       protocol !== "https:" &&
+      protocol !== "file:" &&
       protocol !== "blob:" &&
       protocol !== "data:"
     ) {
@@ -162,7 +158,7 @@ function hideDialogSpeechBubble() {
 
 // Show the preparation/loading overlay while menu assets are loading.
 if (typeof window.showPrepOverlay === "function") {
-  window.showPrepOverlay("Strawberry");
+  window.showPrepOverlay("Tangerine");
 }
 
 
@@ -633,10 +629,12 @@ let menuConfig = {
   mode: null,
   level: null,
   rangeLabel: null,
+  rangeMin: null,
   rangeMax: null,
   clampLabel: null,
   clampTolerance: null,
 };
+
 
 // Toggle whether the menu should remember the last-used game settings
 // (mode, level, range, clamp tolerance) across page reloads.
@@ -645,14 +643,16 @@ const REMEMBER_LAST_SETTINGS_ENABLED = false;
 function saveLastMenuSettingsIfEnabled() {
   if (!REMEMBER_LAST_SETTINGS_ENABLED) return;
   try {
-    const payload = {
+        const payload = {
       mode: menuConfig.mode,
       level: menuConfig.level,
       rangeLabel: menuConfig.rangeLabel,
+      rangeMin: menuConfig.rangeMin,
       rangeMax: menuConfig.rangeMax,
       clampLabel: menuConfig.clampLabel,
       clampTolerance: menuConfig.clampTolerance,
     };
+
     window.localStorage.setItem("stbLastMenuSettings", JSON.stringify(payload));
   } catch (_) {
     // ignore storage errors (e.g. private mode)
@@ -664,16 +664,18 @@ function loadLastMenuSettingsIfEnabled() {
   try {
     const raw = window.localStorage.getItem("stbLastMenuSettings");
     if (!raw) return;
-    const payload = JSON.parse(raw);
+        const payload = JSON.parse(raw);
     if (!payload || typeof payload !== "object") return;
     menuConfig = {
       mode: payload.mode || menuConfig.mode,
       level: payload.level || menuConfig.level,
       rangeLabel: payload.rangeLabel || menuConfig.rangeLabel,
-      rangeMax: payload.rangeMax || menuConfig.rangeMax,
+      rangeMin: typeof payload.rangeMin === "number" ? payload.rangeMin : menuConfig.rangeMin,
+      rangeMax: typeof payload.rangeMax === "number" ? payload.rangeMax : menuConfig.rangeMax,
       clampLabel: payload.clampLabel || menuConfig.clampLabel,
       clampTolerance: payload.clampTolerance || menuConfig.clampTolerance,
     };
+
   } catch (_) {
     // ignore JSON / storage errors
   }
@@ -706,7 +708,10 @@ function selectMode(mode) {
 function startGame(difficulty) {
   menuConfig.level = difficulty;
 
-  const params = new URLSearchParams();
+    const params = new URLSearchParams();
+  if (typeof menuConfig.rangeMin === "number") {
+    params.set("rangeMin", String(menuConfig.rangeMin));
+  }
   if (typeof menuConfig.rangeMax === "number") {
     params.set("rangeMax", String(menuConfig.rangeMax));
   }
@@ -714,9 +719,10 @@ function startGame(difficulty) {
     params.set("clampTolerance", String(menuConfig.clampTolerance));
   }
 
+
   // 永遠用完整 URL，確保在 /sandbox/ 下正常工作
 
-  const targetUrl = new URL("./game_2.html", window.location.href);
+  const targetUrl = new URL('game_2.html', window.location.href);
   targetUrl.search = params.toString();
 
   // 如不再需要，可刪除這行
@@ -760,7 +766,7 @@ let pendingDialogAutoAdvance = null; // helper to track audio-driven auto-advanc
 
 function getDialogTrackSrc(index) {
   // Files are expected to be named dialogue_0_0.mp3, dialogue_0_1.mp3, ...
-  return `dialogue_0${index+1}.mp3`;
+  return `./dialogue_0${index+1}.mp3`;
 }
 
 function stopCurrentDialogAudio() {
@@ -822,8 +828,8 @@ function playNextPageSound() {
     stopCurrentDialogAudio();
     if (!nextPageAudio) {
       var url = window.sanitizeMediaUrl
-        ? window.sanitizeMediaUrl("next_page_sound.mp3")
-        : "next_page_sound.mp3";
+        ? window.sanitizeMediaUrl("./next_page_sound.mp3")
+        : "./next_page_sound.mp3";
       if (!url) {
         return;
       }
@@ -847,8 +853,8 @@ function playSelectSound() {
     stopCurrentDialogAudio();
     if (!selectAudio) {
       var url = window.sanitizeMediaUrl
-        ? window.sanitizeMediaUrl("select_sound.mp3")
-        : "select_sound.mp3";
+        ? window.sanitizeMediaUrl("./select_sound.mp3")
+        : "./select_sound.mp3";
       if (!url) {
         return;
       }
@@ -1239,11 +1245,14 @@ class DialogManager {
     }
   }
 
-        hideChoicePane() {
+                hideChoicePane() {
     if (!this.choicePane) return;
     this.choicePane.classList.remove("choice-pane-visible");
     if (this.infoBox) {
       this.infoBox.classList.remove("dialog-box-narrow");
+      // 當選項竹框收起時，恢復中央對話框的點擊反應
+      this.infoBox.classList.remove("pointer-events-none");
+      this.infoBox.classList.add("pointer-events-auto");
     }
   }
 
@@ -1259,8 +1268,13 @@ class DialogManager {
     this.choicePane.classList.add("choice-pane-visible");
     if (this.infoBox) {
       this.infoBox.classList.add("dialog-box-narrow");
+      // 當右側選項竹框打開時，關閉中央對話框的 pointer-events，
+      // 免得透明部分蓋在選項上，令部分按鈕不能點擊。
+      this.infoBox.classList.add("pointer-events-none");
+      this.infoBox.classList.remove("pointer-events-auto");
     }
   }
+
 
 
 
@@ -1440,7 +1454,7 @@ function startMenuDialogSystem() {
       type: "Choice",
       Question: "你想在哪一個範圍夾鑰匙？",
       AnswerNo: 3,
-      AnswerArr: ["Level 1\n0 至 10", "Level 2\n11 至 20", "Level 3\n0 至 20"], /*"0至10 場地"*/
+      AnswerArr: ["Level 1 – 0 至 10", "Level 2 – 11 至 20", "Level 3 – 0 至 20"], /*"0至10 場地"*/
     },
     /*{
       type: "Choice",
@@ -1482,9 +1496,22 @@ document.addEventListener("dialogChoiceSelected", (event) => {
       }
     } else if (node.Question.includes("範圍")) {
 
-      // Range selection (currently only one option: 0 至 20)
+      // Range selection for gift/key positions
       menuConfig.rangeLabel = answerText;
-      menuConfig.rangeMax = answerIndex === 0 ? 20 : null;
+      if (answerIndex === 0) {
+        // Level 1 – 0 至 10
+        menuConfig.rangeMin = 0;
+        menuConfig.rangeMax = 10;
+      } else if (answerIndex === 1) {
+        // Level 2 – 11 至 20
+        menuConfig.rangeMin = 11;
+        menuConfig.rangeMax = 20;
+      } else {
+        // Level 3 – 0 至 20
+        menuConfig.rangeMin = 0;
+        menuConfig.rangeMax = 20;
+      }
+
 
       // If there is no clamp-choice step in the dialog script,
       // apply a default clamp tolerance and start directly.
@@ -1565,7 +1592,7 @@ document.addEventListener("dialogSequenceCompleted", () => {
 
   // Kick off the enlargement animation on the next frame.
   requestAnimationFrame(() => {
-    bear.style.transform = "translate(-50%, -50%) scale(70)";
+    bear.style.transform = "translate(-50%, -50%) scale(50)";
   });
 
   const handleTransitionEnd = (event) => {
@@ -1574,9 +1601,9 @@ document.addEventListener("dialogSequenceCompleted", () => {
     bear.removeEventListener("transitionend", handleTransitionEnd);
 
     // Clean up the bear image before redirecting.
-    if (bear && bear.parentNode) {
+    /*if (bear && bear.parentNode) {
       bear.parentNode.removeChild(bear);
-    }
+    }*/
 
     // Make the redirect immediate within startGame, and clear our flags.
     window.__menuRedirectDelayMs = 0;
@@ -1634,16 +1661,16 @@ function preloadDialogAudio(timeoutMs = 8000) {
     // Ensure the dialog sound effects are created.
   if (!nextPageAudio) {
     var nextUrl = window.sanitizeMediaUrl
-      ? window.sanitizeMediaUrl("next_page_sound.mp3")
-      : "next_page_sound.mp3";
+      ? window.sanitizeMediaUrl("./next_page_sound.mp3")
+      : "./next_page_sound.mp3";
     if (nextUrl) {
       nextPageAudio = new Audio(nextUrl);
     }
   }
   if (!selectAudio) {
     var selectUrl = window.sanitizeMediaUrl
-      ? window.sanitizeMediaUrl("select_sound.mp3")
-      : "select_sound.mp3";
+      ? window.sanitizeMediaUrl("./select_sound.mp3")
+      : "./select_sound.mp3";
     if (selectUrl) {
       selectAudio = new Audio(selectUrl);
     }
@@ -1904,7 +1931,7 @@ function runBearWalkSequence() {
       }
 
             if (typeof showExclamSpeechBubble === "function") {
-              var rawSrc = "npc_bear_noticed.mp3";
+              var rawSrc = "./npc_bear_noticed.mp3";
               var noticeUrl = window.sanitizeMediaUrl
                 ? window.sanitizeMediaUrl(rawSrc)
                 : rawSrc;
@@ -1961,12 +1988,31 @@ function runBearWalkSequence() {
 
 
 window.onload = async function() {
+  // Immediately remove any stray helper bear zoom image from previous visits.
+  (function removeBearZoomOnLoad() {
+    const existingBearZoom = document.getElementById("finalBearZoom");
+    if (existingBearZoom && existingBearZoom.parentNode) {
+      existingBearZoom.parentNode.removeChild(existingBearZoom);
+    }
 
+    // Also remove any full-screen bear_trans_blue.png overlays that might have persisted.
+    const strayBearImgs = document.querySelectorAll('img[src$="bear_trans_blue.png"]');
+    strayBearImgs.forEach((img) => {
+      if (img.id === "finalBearZoom") {
+        // Already handled above.
+        return;
+      }
+      if (img.parentNode) {
+        img.parentNode.removeChild(img);
+      }
+    });
+  })();
 
   // Ensure video and audio assets are ready before we reveal and animate the menu UI.
   try {
     await waitForMenuAssetsReady();
   } catch (_) {}
+
 
   // Optionally restore last-used settings into menuConfig
   loadLastMenuSettingsIfEnabled();
@@ -1995,7 +2041,8 @@ window.onload = async function() {
   }
 
   let titleIntroStarted = false;
-
+  const titleStayDurationMs = 4000;
+  
   const startTitleIntro = () => {
     if (!title || titleIntroStarted) return;
     titleIntroStarted = true;
@@ -2010,9 +2057,12 @@ window.onload = async function() {
 
     // 當飛入動畫結束後，啟動飛出與菜單顯示流程
     const handleFlyInEnd = (event) => {
+
       if (event.animationName === "flyInFromTop") {
         title.removeEventListener("animationend", handleFlyInEnd);
-        startTitleExitAndMenu();
+        setTimeout(() => {
+          startTitleExitAndMenu();
+        }, titleStayDurationMs);
       }
     };
     title.addEventListener("animationend", handleFlyInEnd);
