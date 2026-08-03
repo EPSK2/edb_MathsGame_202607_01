@@ -1307,8 +1307,8 @@ function initClawMachinePNG() {
           if (typeof window.playClawAttemptFail === "function") {
             window.playClawAttemptFail();
           }
-          if (typeof window.playVoiceRoboticFail === "function") {
-            window.playVoiceRoboticFail(lastAttemptDiff);
+          if (typeof window.playHumanInputError === "function") {
+            window.playHumanInputError(lastAttemptDiff);
           }
         }
 
@@ -3753,6 +3753,46 @@ let fairyOptionsContainer = null;
 let fairyOptionButtons = [];
 let fairyRoundResolved = false;
 
+function playFairyMedia(mediaEl, rawUrl) {
+  if (!mediaEl) {
+    return Promise.resolve(false);
+  }
+
+  if (typeof window.safePlayMedia === "function") {
+    return window
+      .safePlayMedia(mediaEl, rawUrl)
+      .then(function () {
+        return true;
+      })
+      .catch(function () {
+        return false;
+      });
+  }
+
+  try {
+    if (rawUrl) {
+      mediaEl.src = rawUrl;
+      if (typeof mediaEl.load === "function") {
+        mediaEl.load();
+      }
+    }
+
+    var playPromise = mediaEl.play();
+    if (playPromise && typeof playPromise.then === "function") {
+      return playPromise
+        .then(function () {
+          return true;
+        })
+        .catch(function () {
+          return false;
+        });
+    }
+    return Promise.resolve(true);
+  } catch (_) {
+    return Promise.resolve(false);
+  }
+}
+
 function initFairyMedia() {
   if (fairyVideoEl && fairyAudio && fairyGreetingAudio) {
     return;
@@ -4064,7 +4104,7 @@ function handleFairyOptionClick(btn) {
     if (fairyUltFailAudio) {
       try {
         fairyUltFailAudio.currentTime = 0;
-        fairyUltFailAudio.play();
+        playFairyMedia(fairyUltFailAudio);
       } catch (_) {}
     }
 
@@ -4200,37 +4240,48 @@ function showFairyGuidance() {
   // Play greeting first; once it finishes, play the input guidance and
   // show the multiple-choice buttons.
   if (fairyGreetingAudio) {
+    let advanced = false;
+    const advanceToInputAndOptions = function () {
+      if (advanced) return;
+      advanced = true;
+      if (fairyGreetingAudio) {
+        fairyGreetingAudio.onended = null;
+      }
+      if (fairyAudio) {
+        try {
+          fairyAudio.currentTime = 0;
+        } catch (_) {}
+        playFairyMedia(fairyAudio);
+      }
+      showFairyOptionsForCurrentGift();
+    };
+
+    const greetingFallbackTimer = setTimeout(advanceToInputAndOptions, 8000);
+
     try {
       fairyGreetingAudio.currentTime = 0;
       fairyGreetingAudio.onended = function () {
-        fairyGreetingAudio.onended = null;
-        if (fairyAudio) {
-          try {
-            fairyAudio.currentTime = 0;
-            fairyAudio.play();
-          } catch (_) {}
-        }
-        showFairyOptionsForCurrentGift();
+        clearTimeout(greetingFallbackTimer);
+        advanceToInputAndOptions();
       };
-      fairyGreetingAudio.play();
-    } catch (_) {
-      // Fallback: if greeting cannot play, go straight to input + options.
-      try {
-        if (fairyAudio) {
-          fairyAudio.currentTime = 0;
-          fairyAudio.play();
+      playFairyMedia(fairyGreetingAudio).then(function (started) {
+        if (!started) {
+          clearTimeout(greetingFallbackTimer);
+          advanceToInputAndOptions();
         }
-      } catch (_) {}
-      showFairyOptionsForCurrentGift();
+      });
+    } catch (_) {
+      clearTimeout(greetingFallbackTimer);
+      advanceToInputAndOptions();
     }
   } else {
     // No greeting audio: just play the input guidance and show options.
-    try {
-      if (fairyAudio) {
+    if (fairyAudio) {
+      try {
         fairyAudio.currentTime = 0;
-        fairyAudio.play();
-      }
-    } catch (_) {}
+      } catch (_) {}
+      playFairyMedia(fairyAudio);
+    }
     showFairyOptionsForCurrentGift();
   }
 }

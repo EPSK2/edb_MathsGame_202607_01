@@ -456,10 +456,14 @@
       voiceVictorySuccess03: 'voice_human_success_03.mp3',
       voiceVictorySuccess04: 'voice_human_success_04.mp3',
             voiceVictorySuccess05: 'voice_human_success_05.mp3',
+            voiceHumanInput: 'voice_human_input.mp3',
       voiceHumanHint: 'voice_human_hint.mp3',
       voiceHumanHint2: 'voice_human_hint_2.mp3',
       voiceMoreStar: 'voice_human_morestar.mp3'
     };
+
+          // HTMLAudio fallback cache for clips that fail to load/decode via Web Audio.
+          const elementFallbacks = {};
 
 
 
@@ -558,12 +562,9 @@
             if (!loadingPromises[id]) {
         loadingPromises[id] = fetch(url, { cache: 'no-store' })
           .then(function (response) {
-            if (!response.ok) {
+            // file:// responses can report status 0 in some environments.
+            if (!response.ok && response.status !== 0) {
               throw new Error('HTTP ' + response.status + ' while loading ' + id);
-            }
-            const contentType = response.headers.get('Content-Type') || '';
-            if (!/audio|octet-stream/i.test(contentType)) {
-              throw new Error('Unexpected content-type "' + contentType + '" for ' + id);
             }
             return response.arrayBuffer();
           })
@@ -596,6 +597,50 @@
       return loadingPromises[id];
     }
 
+    function playWithElementFallback(id, options) {
+      options = options || {};
+      const rawUrl = audioFiles[id];
+      if (!rawUrl) {
+        return null;
+      }
+
+      const url = sanitizeMediaUrl(rawUrl);
+      if (!url) {
+        return null;
+      }
+
+      if (!elementFallbacks[id]) {
+        const el = new Audio();
+        el.preload = 'auto';
+        elementFallbacks[id] = el;
+      }
+
+      const mediaEl = elementFallbacks[id];
+      try {
+        mediaEl.pause();
+      } catch (_) {}
+
+      try {
+        mediaEl.currentTime = typeof options.offset === 'number' ? Math.max(0, options.offset) : 0;
+      } catch (_) {
+        mediaEl.currentTime = 0;
+      }
+
+      // Keep fallback lightweight: ignore duration slicing here.
+      if (typeof window.safePlayMedia === 'function') {
+        window.safePlayMedia(mediaEl, url);
+      } else {
+        mediaEl.src = url;
+        mediaEl.play().catch(function () {});
+      }
+
+      if (typeof options.onended === 'function') {
+        mediaEl.onended = options.onended;
+      }
+
+      return mediaEl;
+    }
+
 
 
                 function playBuffer(id, options) {
@@ -603,8 +648,8 @@
       loadBuffer(id)
         .then(function (buffer) {
           if (!buffer) {
-            // This id failed to load or decode; skip playback.
-            return null;
+            // Fallback path for local/file protocol or decode failures.
+            return playWithElementFallback(id, options);
           }
 
           const source = audioContext.createBufferSource();
@@ -805,6 +850,15 @@
 
     window.playHintVoiceRound2 = function () {
       playBuffer('voiceHumanHint2');
+    };
+
+    // Compatibility aliases used by game_script_2.js.
+    window.playVoiceRoboticInput = function () {
+      playExclusiveInputErrorVoice('voiceHumanInput');
+    };
+
+    window.playVoiceRoboticFail = function (diff) {
+      window.playHumanInputError(diff);
     };
 
     window.playMoreStarVoice = function () {
