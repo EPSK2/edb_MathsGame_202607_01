@@ -4517,7 +4517,7 @@ function spawnRandomGiftBox() {
     const box = document.createElement("div");
   box.className = "gift-box";
   box.style.left = `${screenX}px`;
-  const targetGiftY = window.innerHeight * 0.675;
+  const targetGiftY = window.innerHeight * 0.64;
   box.style.top = `${targetGiftY}px`;
   box.style.zIndex = "1300";
 
